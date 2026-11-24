@@ -16,6 +16,7 @@ public sealed partial class MainWindow : Window
 {
     private bool _syncingSelection;
     private bool _closing;
+    private readonly long _paneOpenChangedToken;
     private Type? _pendingDestination;
     private WeakReference<Control>? _returnFocus;
     /// <summary>Shared observable account state.</summary>
@@ -27,6 +28,11 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Observe the actual pane state, which changes before its animation completes.
+        // This covers both the title-bar toggle and automatic layout changes on resize.
+        _paneOpenChangedToken = NavView.RegisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty,
+            (_, _) => UpdatePane());
+        UpdatePane();
         ExtendsContentIntoTitleBar = true; SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon("Assets/AppIcon.ico");
@@ -34,6 +40,7 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _closing = true; Session.PropertyChanged -= SessionChanged;
+            NavView.UnregisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty, _paneOpenChangedToken);
             AuthenticationWindow?.Close();
         };
         Navigate(typeof(HomePage));
@@ -98,8 +105,7 @@ public sealed partial class MainWindow : Window
         if (NavFrame.CanGoBack) NavFrame.GoBack();
     }
     private void Profile_Click(object sender, RoutedEventArgs e) => Navigate(typeof(ProfilePage));
-    private void PaneChanged(NavigationView sender, object args) => UpdatePane();
-    private void DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args) => UpdatePane();
+    /// <summary>Shows the bound profile name immediately on expansion, and hides it in the compact pane.</summary>
     private void UpdatePane()
     {
         if (ProfileName is not null) ProfileName.Visibility = NavView.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
@@ -111,8 +117,12 @@ public sealed partial class MainWindow : Window
         else if (args.SelectedItem is NavigationViewItem item)
             Navigate(item.Tag?.ToString() switch
             {
-                "home" => typeof(HomePage), "menu" => typeof(MenuPage), "basket" => typeof(BasketPage),
-                "orders" => typeof(OrdersPage), "about" => typeof(AboutPage), _ => typeof(HomePage)
+                "home" => typeof(HomePage),
+                "menu" => typeof(MenuPage),
+                "basket" => typeof(BasketPage),
+                "orders" => typeof(OrdersPage),
+                "about" => typeof(AboutPage),
+                _ => typeof(HomePage)
             });
     }
 

@@ -40,6 +40,10 @@ Direct execution of the framework-dependent executable without package deploymen
 - Replaced the combined show/hide form with separate login/registration pages hosted by a Frame using native horizontal slide transitions. Replaced the secondary account button with a click-handled hyperlink footer and removed the Cancel button.
 - The x64 unpackaged self-contained application build passed with zero warnings/errors. Manual execution checked both hyperlink routes, the registration scrollbar and bottom submit/return link, the absence of Cancel, initial focus, and owner re-enablement after title-bar close. Password clearing and delegate detachment were inspected in source; no credential submission or database/schema changes were part of this refinement.
 
+## Navigation profile-name timing — 2026-11-24
+
+The navigation label previously changed visibility in PaneOpened/PaneClosed handlers, so expanding the pane waited for animation completion before showing the name. It now follows changes to NavigationView.IsPaneOpen immediately, initializes visibility during window setup, and unregisters the property callback on close. The x64 self-contained application build passed with zero warnings/errors. Manual collapse/expand checks confirmed the avatar remains visible in compact mode and the Guest label is already visible while expansion is still animating. Session restoration and authenticated-name loading rules were not changed.
+
 ## Remaining manual acceptance scenarios
 
 These have implementation and lower-layer coverage where applicable, but were not claimed as a complete GUI run:
