@@ -1,63 +1,52 @@
 # Database setup and evolution
 
-The current baseline is SQL Server with EF Core Power Tools scaffolding. SQL-first remains the provisional workflow. Do not mix schema changes from EF migrations with direct SQL changes without deliberately selecting a new source of truth.
+## Schema authority
 
-## Safe initial setup
+EF Core migrations now own schema evolution. The model/context originated in EF Core Power Tools; their provenance headers remain, but they are maintained code. Do not regenerate tables/context over authored mappings. The old Power Tools configuration is retained at `legacy/efpt.config.json` for historical reference. Existing procedure wrappers and the basket TVP shape are preserved.
 
-1. Start a SQL Server instance and create an empty development database, conventionally `FoodHub_Dev`.
-2. Select that database in SSMS, then run [the schema script](Foodhub_SQL_Server_Schema.sql). The script creates tables, a table type, procedures, settings, and optional demo data. It neither creates nor drops a database.
-3. Inspect the resulting objects and fictional seed data. Do not rerun the creation script on a populated database; it is not idempotent.
+`FoodHub.Core/Migrations` contains an immutable Baseline migration and a separate Accounts migration. Baseline executes its embedded SQL in GO-delimited batches, preserving original procedures, checks, computed values, indexes and required status/store rows. The old `Foodhub_SQL_Server_Schema.sql` is historical documentation, not a parallel current setup path. Optional fictional data is separated into `Foodhub_Demo_Seed.sql`; do not reseed existing data.
 
-Equivalent PowerShell command, after separately creating the empty database:
+## Configuration and new databases
+
+Use a Windows shell with .NET and access to SQL Server. Supply your own connection string; no database password is tracked:
 
 ```powershell
-sqlcmd -S localhost -d FoodHub_Dev -E -b -i .\docs\Foodhub_SQL_Server_Schema.sql
+$env:FOODHUB_CONNECTION_STRING = 'Server=localhost;Database=FoodHub_Dev;Integrated Security=True;TrustServerCertificate=True'
+dotnet run --project FoodHub.Database -- migrate
 ```
 
-`-E` uses Windows authentication and `-b` reports SQL errors as command failure. Use the appropriate instance name and your local SQL tooling's trusted certificate configuration. Do not weaken certificate checks for a remote database merely to copy the local development setup.
+The certificate setting above is for the local development server. Use a trusted certificate for remote servers. EF can create an absent database when the SQL identity has permission. Migrate an empty database; do not run the historical creation script first. The app itself never runs migrations automatically. Set the environment before starting Visual Studio or launching the executable so the app inherits it.
 
-The script defaults to loading demo data. Change its final batch's `@LoadDemoData` to 0 before execution if a clean dataset is needed. Current samples use LKR, a 250.00 delivery fee, two fictional customers, five menu items, and orders covering active, delivered, and cancelled states. Menu photos must be supplied by the app or replaced with a placeholder.
+Install EF tooling locally when adding/reviewing migrations:
 
-## Data map
+```powershell
+dotnet tool install dotnet-ef --version 10.0.15 --tool-path .tools
+./.tools/dotnet-ef migrations add DescriptiveChange --project FoodHub.Core
+./.tools/dotnet-ef migrations script --project FoodHub.Core
+```
 
-| Objects | Responsibility |
-|---|---|
-| Customers, CustomerAddresses | Local profiles and their saved delivery addresses |
-| MenuCategories, MenuItems | Categorized menu, current prices, availability, and local photo paths |
-| StoreSettings | One store's currency and delivery fee |
-| Orders, OrderItems | Saved receipt, contact/address snapshots, quantities, and price snapshots |
-| OrderStatuses, OrderStatusHistory | Current order state and timestamped progression |
-| BasketItemList | Table-valued parameter with one positive quantity per menu item |
+Review generated SQL before applying changes. Do not use EnsureCreated with this migration history. The historical baseline intentionally refuses rollback; restoring a reviewed backup is the recovery path. Rolling back Accounts removes account/session data, so review/back up first.
 
-Order number, line totals, and order total are computed database values. Scaffolded nullable properties for computed values do not mean the UI should invent replacements; reload the saved result. Keep historical receipts based on snapshot fields rather than the customer's current profile or the current menu.
+## Adopting an existing SQL-first database
 
-## Order write contracts
+Never apply the creation migration directly to a populated legacy database. Stop other schema-changing tools while adopting the baseline.
 
-`dbo.PlaceOrder` accepts customer ID, address ID, and `BasketItemList`; it returns the new order ID through an output parameter. It validates a nonempty basket, address ownership, settings, and item availability, then saves the order, items, and initial history event in a transaction. It calculates prices from the menu in SQL Server.
+1. Create a separate reference database by setting `FOODHUB_CONNECTION_STRING` to its name and running `./.tools/dotnet-ef database update Baseline --project FoodHub.Core`. It must have only Baseline applied.
+2. Restore `FOODHUB_CONNECTION_STRING` to the existing target database. Set `FOODHUB_BASELINE_REFERENCE` to the reference connection string.
+3. Run `dotnet run --project FoodHub.Database -- verify`. The comparison covers tables, ordered columns, types, nullability, identities, computed/default values, collations, checks, indexes, foreign keys, procedures and table types. Procedure boundary whitespace and CRLF/LF are normalized; internal source differences cause rejection. EF history and application rows are excluded. `describe` prints schema-only JSON for diagnostics.
+4. Run `dotnet run --project FoodHub.Database -- baseline 'C:/server/backup/FoodHub-before-accounts.bak'`. The path is on the SQL Server machine. The tool verifies schema, creates a COPY_ONLY/CHECKSUM backup, runs RESTORE VERIFYONLY, rechecks schema, and records baseline history transactionally. No customer rows are changed. A mismatch or backup failure aborts adoption.
+5. Run `dotnet run --project FoodHub.Database -- migrate`. Confirm original customer/order counts and saved receipts afterward. The nullable account link leaves legacy customers unclaimed; no credentials are generated.
 
-The generated `PlaceOrderAsync` wrapper's task result is not the new order ID. Read the supplied `OutputParameter<int?>` after awaiting the call, then load the saved order and computed receipt fields.
+Use a distinct backup file for each upgrade. Keep the backup until the upgrade is accepted. Reference databases can be removed after verification; do not remove the target database as part of this workflow.
 
-`dbo.UpdateOrderStatus` accepts customer ID, order ID, and new status ID. It locks the matching order and updates both state and history transactionally. Allowed transitions are:
+## Data and write contracts
 
-| From | Allowed next state |
-|---|---|
-| 10 — Order placed | 20 — Preparing, or 90 — Cancelled |
-| 20 — Preparing | 30 — Out for delivery |
-| 30 — Out for delivery | 40 — Delivered |
-| 40 — Delivered / 90 — Cancelled | None |
+`Users` stores account identity/password hashes/photo bytes. `UserSessions` stores token digests and fixed UTC session dates. `Customers.UserId` is nullable, filtered-unique and noncascading. Existing customer/order keys are unchanged.
 
-Use these procedures for order writes. Normal EF operations can handle profile and address edits. Validate input in the application for helpful feedback as well as retaining database checks. Map expected SQL errors 51001–51006 to clear messages; keep unexpected failures diagnosable. A lost response after commit is an uncertain outcome: inspect saved state before retrying placement.
+`Customers` and `CustomerAddresses` own contact/delivery details. Menu/category/store tables retain current prices and settings. Orders and items retain receipt snapshots, computed line totals/order totals and unique order numbers. OrderStatusHistory records timestamped progression.
 
-Existing foreign keys preserve references used by orders; deleting referenced customers, addresses, or menu items is not a supported customer workflow. Do not add cascading deletes to make a form operation succeed.
+`PlaceOrder(CustomerId, CustomerAddressId, BasketItemList, OrderId OUTPUT)` validates the basket, ownership and availability and saves the order/items/initial event atomically. Read the generated OutputParameter after awaiting the wrapper, then reload the saved receipt. Wrapper task results are not the new order ID.
 
-## Schema and scaffolding changes
+`UpdateOrderStatus(CustomerId, OrderId, NewStatusId)` locks the owned order and transactionally updates state/history. Allowed transitions remain 10 -> 20 or 90, 20 -> 30, 30 -> 40; 40/90 are terminal. Expected SQL errors 51001–51006 remain meaningful domain outcomes. Referenced customer/address/menu deletion is not a supported workflow. Do not add cascading deletes.
 
-For a future schema change, inspect existing development data first, prepare a nondestructive SQL change when preservation is needed, and update the clean-create script to match. Explicitly label reset/reseed procedures; do not silently recreate a working database.
-
-Apply and verify the change in the intended development database. Use EF Core Power Tools with the existing `FoodHub.Core/efpt.config.json` to regenerate affected tables and procedures. Review the generated diff, especially computed columns, composite address ownership keys, nullability, table-valued parameters, and output parameters. Update services, documentation, and integration checks together.
-
-Generated files are regeneration-owned. Preserve headers and keep authored behavior or explanations in separate services/partial files. The current scaffolding settings include connection-string generation; changing that setting and the context configuration belongs to the configuration milestone.
-
-## Verification boundary
-
-This guide describes the checked-in script and generated code. It does not certify the live database schema, connectivity, or procedure execution. Integration tests must use SQL Server in a separate disposable test database, since computed columns, table-valued parameters, procedures, and locking behavior cannot be established with EF's in-memory provider.
+See [Verification](Verification.md) for the backup/upgrade record and SQL Server integration commands.

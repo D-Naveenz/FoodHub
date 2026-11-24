@@ -1,32 +1,22 @@
 # Development roadmap
 
-This is a sequence of learning slices, not a claim that features already work. The [scope](Foodhub_Project_Scope.md) defines agreed behavior. Technical defaults remain provisional until implementation guidance settles them.
+## Implemented account and shell slice
 
-| Milestone | Prerequisite and work | Observable completion |
+The app now has the navigation shell and Home, separate modal login/registration, account/customer services, opaque sessions, editable profile/contact details, photo selection, saved addresses and appearance settings. EF migrations replace SQL-first schema ownership. Menu, Basket, Orders and subordinate customer pages are skeletons.
+
+Build, SQL integration and manual UI results are recorded separately in [Verification](Verification.md). A source file or graph node is never evidence that a GUI journey was exercised.
+
+## Remaining milestones
+
+| Milestone | Work | Observable completion |
 |---|---|---|
-| 1. Connection and configuration | Existing shell and schema. Make connection configuration explicit, document local setup, establish simple view-model/service composition, and display connection failures clearly. | App opens on a Windows development machine; one async read succeeds; unreachable SQL Server produces useful feedback without freezing the UI. |
-| 2. Profiles and addresses | Connection works. Create/select/edit profiles and their saved addresses, with required-field validation. | Data survives restart; switching profiles displays only the selected profile's addresses; invalid fields are explained. |
-| 3. Menu and basket | Data access and selected profile. Add categories, search, local images/placeholders, availability, quantities, and preview totals. | A demonstrator can find food, combine duplicate additions, edit quantities, remove items, and see correct totals and empty states. |
-| 4. Checkout and confirmation | Profiles, addresses, and basket. Validate the review screen, call `PlaceOrder`, then reload the receipt. | Valid checkout saves exactly the intended items and shows an order number and saved total; empty/unavailable baskets and another customer's address fail without partial orders. |
-| 5. Tracking and cancellation | Persisted orders. Add current status, ordered timeline, labeled demo advancement, and eligible cancellation through `UpdateOrderStatus`. | Each normal stage is demonstrable; cancellation works only from Order placed; terminal states and skipped/backward/repeated transitions are rejected. |
-| 6. History and presentation | Complete ordering flow. Add selected-customer history and receipt details; finish navigation, keyboard behavior, loading/error/empty states, and restart demonstration. | Delivered and cancelled orders reopen correctly after restart; later customer/menu/settings edits do not change saved receipt snapshots. |
+| Menu and basket | Category/search/photo-led browsing, availability, in-memory quantities and totals | Guest or signed-in user can find food, add/remove items and see accurate totals |
+| Checkout and confirmation | Require a valid session, select owned address, review contact/total, call PlaceOrder and reload receipt | SQL saves one complete order and UI shows its unique order number; invalid/empty/unavailable/wrong-owner requests fail without partial orders |
+| Tracking and cancellation | Timeline, current status and clearly labeled demo progression/cancellation | Allowed transitions persist; delivered/cancelled are terminal; competition does not duplicate events |
+| History and polish | Authenticated customer history and full saved receipts; complete accessibility/error/restart checks | Receipt snapshots survive restart and later profile/menu edits; private state stays scoped to the account |
 
-## Verification strategy
+Keep basket state in memory provisionally and clear/reconcile it at account changes. Do not automatically retry uncertain order placement. Preserve stored procedures, snapshots, UTC timestamps and text status labels. No staff administration, dispatch, GPS, online payments or Foodhub APIs are required.
 
-Use focused unit tests for authored basket calculations and application decisions once those exist. Use SQL Server integration checks for the procedures, transactions, constraints, and persisted snapshots. UI acceptance needs manual WinUI execution; graph inspection does not replace it.
+## Account follow-up verification
 
-Before declaring the full journey complete, demonstrate:
-
-1. Select/create a customer and address, browse by category/search, add food, adjust quantities, and review the total.
-2. Place an order and compare the persisted items, amount, address, and order number with the confirmation.
-3. Try an empty basket, missing address, wrong-owner address, and unavailable item; confirm useful feedback and no partial order records.
-4. Advance one order through every normal stage. Cancel a different newly placed order. Reject cancellation after preparation and all transitions from terminal states.
-5. Attempt competing status actions against one order; confirm a consistent final state and history without duplicate progression.
-6. Restart the application and reopen orders. Edit current customer/menu/settings data in the test setup and confirm earlier receipts retain their saved values.
-7. Verify keyboard access, status labels without color, missing-image fallback, duplicate-submit prevention, database outage feedback, and safe recovery from an uncertain checkout result.
-
-Record actual build, database, and UI results with each implementation milestone. Never mark a milestone complete solely because entities, screens, or graph nodes exist.
-
-## Later decisions
-
-Discuss UI guidance and MVVM/composition choices during the first implementation slice. Review price-change handling before checkout implementation. Employees, dispatch, GPS, collection, sign-in, menu administration, and payments require a separate scope decision; they are not prerequisites for this roadmap.
+Exercise the complete GUI account journey, remembered-token restart, image picker validation, database-outage retry, high text scaling and screen-reader behavior using a disposable account database. Review [Accounts](Accounts.md) for the implemented rules. Password recovery/change and email changes require a later explicit slice.

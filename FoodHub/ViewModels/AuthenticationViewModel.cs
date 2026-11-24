@@ -1,0 +1,89 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using FoodHub.Core.Services;
+using FoodHub.Services;
+
+namespace FoodHub.ViewModels;
+
+/// <summary>Owns form state and async submission; window code handles only window behavior.</summary>
+public partial class AuthenticationViewModel : ObservableObject, IDisposable
+{
+    private readonly ApplicationServices _services;
+    private readonly CancellationTokenSource _lifetime = new();
+    /// <summary>Observable email form state.</summary>
+    private string _email = "";
+    /// <summary>Observable Email form value.</summary>
+    public string Email { get => _email; set { SetProperty(ref _email, value); } }
+    /// <summary>Observable display name form state.</summary>
+    private string _displayName = "";
+    /// <summary>Observable DisplayName form value.</summary>
+    public string DisplayName { get => _displayName; set { SetProperty(ref _displayName, value); } }
+    /// <summary>Observable full name form state.</summary>
+    private string _fullName = "";
+    /// <summary>Observable FullName form value.</summary>
+    public string FullName { get => _fullName; set { SetProperty(ref _fullName, value); } }
+    /// <summary>Observable phone form state.</summary>
+    private string _phone = "";
+    /// <summary>Observable Phone form value.</summary>
+    public string Phone { get => _phone; set { SetProperty(ref _phone, value); } }
+    /// <summary>Observable remember form state.</summary>
+    private bool _remember;
+    /// <summary>Observable Remember form value.</summary>
+    public bool Remember { get => _remember; set { SetProperty(ref _remember, value); } }
+    /// <summary>Observable is registration form state.</summary>
+    private bool _isRegistration;
+    /// <summary>Observable IsRegistration form value.</summary>
+    public bool IsRegistration { get => _isRegistration; set { SetProperty(ref _isRegistration, value); } }
+    /// <summary>Observable is busy form state.</summary>
+    private bool _isBusy;
+    /// <summary>Observable IsBusy form value.</summary>
+    public bool IsBusy { get => _isBusy; set { SetProperty(ref _isBusy, value); } }
+    /// <summary>Observable message form state.</summary>
+    private string _message = "";
+    /// <summary>Observable Message form value.</summary>
+    public string Message { get => _message; set { SetProperty(ref _message, value); } }
+    /// <summary>Raised only after a live form successfully publishes a new session.</summary>
+    public event EventHandler? Authenticated;
+    /// <summary>Controls created in XAML do not retain passwords in the view model.</summary>
+    public AsyncRelayCommand SubmitCommand { get; }
+    /// <summary>Switches between forms without creating another native window.</summary>
+    public RelayCommand SwitchCommand { get; }
+    /// <summary>Supplies the current password fields transiently at submission.</summary>
+    public Func<(string Password, string Confirmation)> ReadPasswords { private get; set; } = () => ("", "");
+    /// <summary>Clears sensitive UI fields after submitting or switching forms.</summary>
+    public Action ClearPasswords { private get; set; } = () => { };
+
+    /// <summary>Creates the form for either entry route.</summary>
+    public AuthenticationViewModel(ApplicationServices services, bool registration)
+    {
+        _services = services; IsRegistration = registration;
+        SubmitCommand = new(SubmitAsync, () => !IsBusy);
+        SwitchCommand = new(() => { IsRegistration = !IsRegistration; Message = ""; ClearPasswords(); }, () => !IsBusy);
+    }
+
+    /// <summary>Submits one form, ignores obsolete results and clears PasswordBox values on every exit.</summary>
+    private async Task SubmitAsync()
+    {
+        IsBusy = true; SubmitCommand.NotifyCanExecuteChanged(); SwitchCommand.NotifyCanExecuteChanged(); Message = "";
+        var generation = _services.Session.Generation;
+        try
+        {
+            var (password, confirmation) = ReadPasswords();
+            var result = IsRegistration
+                ? await _services.Accounts.RegisterAsync(new(DisplayName, FullName, Email, Phone, password, confirmation, Remember), _lifetime.Token)
+                : await _services.Accounts.LoginAsync(Email, password, Remember, _lifetime.Token);
+            if (_lifetime.IsCancellationRequested || generation != _services.Session.Generation) return;
+            if (!result.Succeeded) { Message = result.Message; return; }
+            await _services.Session.AcceptAsync(result.Value!, Remember);
+            if (!_lifetime.IsCancellationRequested) Authenticated?.Invoke(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            ClearPasswords(); IsBusy = false; SubmitCommand.NotifyCanExecuteChanged(); SwitchCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    /// <summary>Cancels requests and suppresses late results after the window closes.</summary>
+    public void Dispose() { _lifetime.Cancel(); }
+}

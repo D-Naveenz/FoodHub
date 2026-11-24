@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
@@ -15,7 +15,10 @@ namespace FoodHub
     /// </summary>
     public partial class App : Application
     {
-        private Window? _window;
+        /// <summary>Explicit application service composition, created on the UI thread.</summary>
+        public static FoodHub.Services.ApplicationServices Services { get; private set; } = null!;
+        /// <summary>The dashboard and owner of secondary windows.</summary>
+        public static MainWindow MainWindow { get; private set; } = null!;
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -30,10 +33,12 @@ namespace FoodHub
         /// Invoked when the application is launched.
         /// </summary>
         /// <param name="args">Details about the launch request and process.</param>
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _window = new MainWindow();
-            _window.Activate();
+            Services = new();
+            MainWindow = new MainWindow();
+            MainWindow.Activate();
+            await Services.Session.RestoreAsync();
         }
     }
 }

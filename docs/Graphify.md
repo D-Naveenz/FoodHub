@@ -50,3 +50,7 @@ Verify with an MCP client by initializing a session, listing tools, calling `gra
 Local code extraction completed with 227 nodes and 362 edges, including SQL after installing its parser. CLI query and explain requests for `MainWindow` succeeded. An MCP stdio client initialized the configured server, listed its tools, called `graph_stats`, and retrieved `MainWindow` through `query_graph`. Community count is zero because clustering was deliberately skipped. No model tokens were used for this extraction.
 
 The sandboxed client attempt stalled; the same local handshake check passed outside the sandbox. This confirms the executable, configuration, and protocol work together; it does not establish that an already open Codex chat has reloaded its MCP tools. Application builds, GUI behavior, and live SQL Server behavior were not tested in this documentation/setup task.
+
+## Account/shell refresh — 2026-11-24
+
+After the account and navigation implementation, local code-only extraction completed with 676 nodes and 1230 edges, without clustering or cloud/model extraction. Top-level statements in the database tool and Windows storage test runner and the standalone demo seed have incomplete symbol coverage; read those files directly. Generated graph output remains ignored.

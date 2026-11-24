@@ -1,0 +1,7 @@
+<Page x:Class="FoodHub.Pages.CheckoutPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <ScrollViewer><StackPanel Padding="32" Spacing="24">
+  <TextBlock Text="Checkout" Style="{StaticResource TitleTextBlockStyle}"/>
+  <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Order review and placement will be added in a later milestone."/>
+  <Button Content="Preview confirmation page" Click="Next_Click"/>
+ </StackPanel></ScrollViewer>
+</Page>

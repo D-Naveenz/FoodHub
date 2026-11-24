@@ -1,0 +1,7 @@
+<Page x:Class="FoodHub.Pages.ItemDetailsPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <ScrollViewer><StackPanel Padding="32" Spacing="24">
+  <TextBlock Text="Item details" Style="{StaticResource TitleTextBlockStyle}"/>
+  <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Item photos, availability and prices will appear here."/>
+  
+ </StackPanel></ScrollViewer>
+</Page>

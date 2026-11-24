@@ -1,3 +1,5 @@
+-- HISTORICAL BASELINE ONLY. New installations and upgrades use EF Core migrations.
+-- See Database.md. Do not run this script against an existing or migrated database.
 /*
     Foodhub-inspired ordering and tracking | SQL Server
 

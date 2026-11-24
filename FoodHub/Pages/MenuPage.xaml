@@ -1,0 +1,7 @@
+<Page x:Class="FoodHub.Pages.MenuPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <ScrollViewer><StackPanel Padding="32" Spacing="24">
+  <TextBlock Text="Menu" Style="{StaticResource TitleTextBlockStyle}"/>
+  <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Menu browsing will be added in a later milestone."/>
+  <Button Content="Preview item-details page" Click="Next_Click"/>
+ </StackPanel></ScrollViewer>
+</Page>

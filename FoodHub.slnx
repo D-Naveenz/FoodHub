@@ -16,4 +16,7 @@
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
+  <Project Path="FoodHub.Database/FoodHub.Database.csproj" />
+  <Project Path="FoodHub.Tests/FoodHub.Tests.csproj" />
+  <Project Path="FoodHub.Windows.Tests/FoodHub.Windows.Tests.csproj" />
 </Solution>
