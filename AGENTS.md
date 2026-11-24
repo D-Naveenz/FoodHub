@@ -41,9 +41,9 @@ The following guidance includes the approved account/migration decisions. Remain
 
 - Use simple MVVM, thin page code-behind for view behavior, and application services for workflows. Keep WinUI types in `FoodHub`; keep database access and non-UI logic in `FoodHub.Core` for now.
 - Use asynchronous database operations, cancellation where appropriate, and a short-lived context per operation. Do not block the UI thread or share one context across concurrent operations.
-- EF Core migrations now own schema evolution; do not regenerate the maintained context/entities with EF Core Power Tools. Preserve the historical baseline and procedure contracts. Use `PlaceOrder` and `UpdateOrderStatus` for order writes; use normal EF operations for profile/address edits. Do not duplicate order transactions in the UI.
+- EF Core migrations now own schema evolution; do not regenerate the maintained context/entities with EF Core Power Tools. Use the current InitialCreate migration and preserve procedure contracts. FoodHub_Dev is disposable; explicit local reset does not require backups. Use `PlaceOrder` and `UpdateOrderStatus` for order writes; use normal EF operations for profile/address edits. Do not duplicate order transactions in the UI.
 - Historical scaffold headers in `FoodHub.Core/Models` record provenance. Entities/context are now maintained code; preserve their headers and add authored behavior through services and partial mappings. The old scaffold configuration is archived under docs/legacy.
-- Keep migrations, model snapshots, procedure SQL and explanations consistent. The historical SQL creation script is not a second current schema authority. Never recreate/reseed an existing database as an incidental migration step.
+- Keep migrations, model snapshots, procedure SQL and explanations consistent. The historical SQL creation script is not a second current schema authority. Use FoodHub.Database reset explicitly for localhost/FoodHub_Dev when a rebuild is needed; it drops all development rows without backups. Never reset on app startup, connection tests, or a failed migration. Production backup/upgrade workflows are out of scope.
 - Use local fictional data. Accounts use local opaque sessions; direct database access remains an educational security boundary; status controls simulate delivery and do not represent GPS.
 
 ## Completion and maintenance

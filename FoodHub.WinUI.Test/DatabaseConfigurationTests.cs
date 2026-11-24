@@ -97,7 +97,7 @@ public sealed class DatabaseConfigurationTests
         var active = Load();
         Assert.IsNotNull(active.LoadError);
         Assert.Throws<DatabaseConfigurationException>(() => active.RequireConnectionString());
-        await new DatabaseSettingsStore(_paths, active).SaveAsync(Local);
+        await new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active).SaveAsync(Local);
         Assert.IsNull(Load().LoadError);
     }
     /// <summary>Missing, invalid, and incomplete connection values produce safe setup errors.</summary>
@@ -127,7 +127,7 @@ public sealed class DatabaseConfigurationTests
     {
         Write(Path.Combine(_root, "appsettings.json"), Local);
         var active = Load();
-        var store = new DatabaseSettingsStore(_paths, active);
+        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active);
         var changed = DatabaseSettingsStore.BuildConnectionString("other-server", "Other", false);
         await store.SaveAsync(changed);
         Assert.IsTrue(store.RestartRequired);
@@ -140,9 +140,9 @@ public sealed class DatabaseConfigurationTests
     [TestMethod]
     public async Task ResetMarkerSurvivesFailedTokenDeletion()
     {
-        var store = new DatabaseSettingsStore(_paths, Load());
+        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), Load());
         await store.SaveAsync(Local);
-        var next = new DatabaseSettingsStore(_paths, Load());
+        var next = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), Load());
         await Assert.ThrowsAsync<IOException>(() => next.PrepareSessionAsync(() => throw new IOException()));
         Assert.IsTrue(Load().ResetSessionOnStartup);
         var removed = false;
@@ -157,7 +157,7 @@ public sealed class DatabaseConfigurationTests
         Directory.CreateDirectory(_paths.UserDirectory);
         await File.WriteAllTextAsync(_paths.SettingsFile, "{\"Other\":\"keep\",\"ConnectionStrings\":{\"FoodHub\":\"override\"}}");
         Write(Path.Combine(_root, "appsettings.json"), Local);
-        await new DatabaseSettingsStore(_paths, Load()).SaveAsync(null);
+        await new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), Load()).SaveAsync(null);
         Assert.AreEqual(Local, Load().ConnectionString);
         StringAssert.Contains(await File.ReadAllTextAsync(_paths.SettingsFile), "keep");
         Assert.IsTrue(Load().ResetSessionOnStartup);
@@ -176,7 +176,7 @@ public sealed class DatabaseConfigurationTests
     public async Task SettingsViewModelPersistsPendingFields()
     {
         var active = Load();
-        var store = new DatabaseSettingsStore(_paths, active);
+        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active);
         var tester = new DatabaseConnectionTester(NullLogger<DatabaseConnectionTester>.Instance);
         using var first = new DatabaseSettingsViewModel(active, store, tester, NullLogger<DatabaseSettingsViewModel>.Instance)
             { Server = "offline", Database = "FoodHub_Test", TrustCertificate = true };
@@ -214,7 +214,7 @@ public sealed class DatabaseConfigurationTests
     {
         await File.WriteAllTextAsync(_paths.UserDirectory, "A file blocks directory creation.");
         var active = Load();
-        var store = new DatabaseSettingsStore(_paths, active);
+        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active);
         await Assert.ThrowsAsync<IOException>(() => store.SaveAsync(Local));
         Assert.IsFalse(store.RestartRequired);
         Assert.AreEqual("", active.ConnectionString);

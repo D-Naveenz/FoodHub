@@ -1,5 +1,27 @@
 # Verification record — 2026-11-24
 
+## Current host, storage, and development tooling verification
+
+Implemented constructor-built host composition with generated WinUI startup, MainWindowHostedService, package-aware ILocalStorageService, Core-owned JSON content, and Development-only local-folder access. The prior Baseline/Accounts migration chain, BaselineVerifier, backup/reference/adoption commands, and preservation-only tests were removed. The current schema starts with 20261124142837_InitialCreate and retains the maintained snapshot, SQL procedures, TVP, constraints, and required lookup rows.
+
+- Final unpackaged x64 test build: zero warnings/errors. **65 tests passed, zero failed, one skipped (66 total)** with local SQL enabled. The skipped case specifically requires actual package identity; packaged LocalFolder selection was verified in the real app below. Coverage includes native hosted-window creation/appearance ordering, duplicate startup/stop, cancelled startup, worker-thread Stop marshalling, atomic file persistence, missing-file deletion, traversal rejection, cancelled writes, settings import conflicts/retry/no resurrection, fresh packaged authentication, developer-command environment gating/duplicate/failure handling, reset-target rejection, one-migration schema creation/recreation, accounts and order contracts.
+- Ordinary Debug app/administration-tool builds passed with zero warnings/errors. No custom Main or DISABLE_XAML_GENERATED_MAIN was introduced. Existing Windows App SDK deployment defaults were retained.
+- Authorized localhost/FoodHub_Dev reset completed without backups. SQL verification showed exactly one InitialCreate migration, zero users/customers/orders, five statuses, and one store-settings row. New registration is required after this intentional reset; no optional demonstration data was loaded.
+- Unpackaged Development UI: Settings displayed C:/Users/dashe/AppData/Local/FoodHub; Open local storage folder opened precisely that location in Explorer. Closing the app completed host shutdown with exit code 0.
+- Packaged Development UI: Settings displayed the package LocalState folder; Explorer opened that exact root. A settings-migrated.v1 marker and copied theme.txt were present, with no legacy token imported. The app started and closed successfully under its registered debug package identity.
+- A Debug executable launched with DOTNET_ENVIRONMENT=Production showed empty database fields and omitted the entire Development/path/button section. This verifies runtime-environment gating independently of build configuration; it exited with code 0. Unit tests also guard direct command execution outside Development.
+- Release MSIX generation succeeded. Inspecting the x64 package confirmed only appsettings.json, with an empty production connection and no Development JSON. Debug app, administration-tool, and test outputs all received both Core-owned JSON files without consumer declarations.
+- Local code-only Graphify extraction refreshed to 1,032 nodes/2,160 edges; generated graph output remains ignored.
+- Release packaging retains two SDK/tooling warnings: missing mspdbcmf.exe prevents symbol packaging; PRI263 concerns a neutral Microsoft.Data.SqlClient resource. No source compilation errors occurred.
+
+The first packaged smoke check reached stale AppX binaries, causing the old deployment-manager activation failure. The ordinary build output correctly evaluated the existing self-contained runtime setting; hashes proved the registered layout's assembly was old. Staging the generated .appxrecipe payload into its existing debug layout made hashes match and the actual packaged UI passed. No deployment policy change or unregister-on-exit runner was used.
+
+Historical scaffold/copyright/generated-file headers were preserved. ConstraintMapping explanations now describe the maintained model rather than the removed historical baseline. Tests use a minimal native window boundary to exercise the real hosted service without customer navigation; session encryption retains its existing binary format. SQL reset and storage setting migration are separate workflows.
+
+Remaining manual acceptance: full GUI credential registration/login and remembered-account restart, settings Save/Reset with actual credentials, and high-text-scale/screen-reader scenarios. Automated service/SQL/storage tests do not claim those full GUI journeys.
+
+Earlier sections record prior checks and are superseded where behavior changed above.
+
 ## Builds and automated checks
 
 - Full solution x64 Debug build: passed with zero warnings/errors, using explicit restore and disabled build servers in this environment.
@@ -14,19 +36,9 @@ Use the restore/build/run commands in [README](../README.md#verification). Optio
 
 The packaged startup retains the template's Visual Studio Test Explorer integration and publishes the WinUI dispatcher for UITestMethod; packaged execution was not independently exercised in this migration. For reproducible CLI verification, the same application can be built unpackaged/self-contained and hosts Microsoft.Testing.Platform in-process; it publishes the runner exit code and closes the window on completion. The current migrated cases do not require the XAML UI thread; setting up the dispatcher preserves support for future actual UI-component tests.
 
-## Development database upgrade
+## Development database reset
 
-The initial sandboxed SQL attempt failed. A read-only retry outside the sandbox reached localhost/FoodHub_Dev and found two customers and five orders.
-
-A separate `FoodHub_Baseline_20261124_Accounts` reference database was created with Baseline only. Metadata comparison initially rejected source line-ending/trailing-whitespace differences in the procedures; normalizing only those presentation differences produced an exact match. Baseline adoption then completed only after COPY_ONLY/CHECKSUM backup and RESTORE VERIFYONLY succeeded.
-
-Backup retained on the SQL Server machine:
-
-```text
-C:/Program Files/Microsoft SQL Server/MSSQL17.MSSQLSERVER/MSSQL/Backup/FoodHub_Dev_before_accounts_20261124.bak
-```
-
-Applied migrations: `20261124065707_Baseline`, `20261124065714_Accounts`. Post-upgrade SQL checks confirmed two customers, five orders, zero linked legacy accounts, and zero new account rows. No demo data was reset or reseeded. The separate baseline reference is retained for inspection.
+The old backup/adoption verification record is superseded by the approved disposable-development workflow below. Existing archived backup/reference artifacts were left alone; no current code depends on them.
 
 ## Manual WinUI observations
 
@@ -75,3 +87,16 @@ Release publishing initially exposed EF trimming warnings, so PublishTrimmed is 
 Remaining manual acceptance: full GUI credential submission and remembered-account restart, Settings Save/Reset/restart with a disposable account, and accessibility/high-scale checks. Session encryption/restore/sign-out and durable database-change reset behavior have automated coverage; those checks are not a claim of a complete GUI login journey. The packaged-run tooling ignored the temporary-name override and unregistered the existing debug identity on exit. The local development registration was restored from the rebuilt AppX layout, then packaged Settings/SQL connectivity was verified directly without that runner. The restored registration remains available. No customer database data was changed.
 
 Local code-only Graphify extraction was refreshed to 927 nodes/1846 edges without cloud/semantic extraction. CodeGraph remains unavailable and was not installed. Generated graph and build/test/publish artifacts remain ignored by Git.
+
+## Default Windows App SDK deployment fix — 2026-11-24
+
+A normal Visual Studio build could still fail in the Windows App SDK module initializer with REGDB_E_CLASSNOTREG while constructing DeploymentInitializeOptions, before App/Generic Host/database code. Earlier successful launch checks explicitly supplied WindowsAppSDKSelfContained=true; that command-line setting had not become the project default.
+
+Both FoodHub and FoodHub.WinUI.Test now default WindowsAppSDKSelfContained to true, while retaining an explicit false override for intentionally framework-dependent deployment. The SDK includes its matching native runtime and selects registration-free activation; the project does not manually suppress a required initializer. This is independent of .NET SelfContained.
+
+- Ordinary x64 application build, with no WindowsAppSDKSelfContained override: passed, zero warnings/errors.
+- Evaluated project properties: WindowsAppSDKSelfContained=true, WindowsAppSdkUndockedRegFreeWinRTInitialize=true, and WindowsAppSdkDeploymentManagerInitialize unset.
+- Launched that ordinary-build executable from the temporary directory: observed Home and clean exit code 0, with no activation exception.
+- Unpackaged test-app build using only Platform=x64 and WindowsPackageType=None: passed, zero warnings/errors. All 43 tests passed with local SQL enabled and no WindowsAppSDKSelfContained command-line override; zero failures/skips.
+
+README now explains the default, the distinction from the .NET runtime, and clean/rebuild/redeploy steps for older output. No runtime installation, package registration change, database change, or exception-swallowing workaround was used for this fix. Local Graphify output was refreshed and remains ignored.

@@ -17,7 +17,7 @@
     <EmbeddedResource Include="Migrations/Sql/*.sql" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="../appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../appsettings.Development.json" Link="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" Condition="'$(Configuration)' == 'Debug'" />
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" Condition="'$(Configuration)' == 'Debug'" />
   </ItemGroup>
 </Project>

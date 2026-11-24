@@ -24,7 +24,7 @@ Names/phone and addresses are edited after registration. Photos are optional. Ac
 
 ## Session lifecycle
 
-Unchecked Stay signed in keeps a token only in memory (eight hours maximum); app restart starts as Guest. Checked saves a Windows LOCAL=user protected token for seven days. SQL contains the SHA-256 digest, never the bearer token. Reads never renew expiry. Corrupt/decryption-failed storage is treated as Guest.
+Unchecked Stay signed in keeps a token only in memory (eight hours maximum); app restart starts as Guest. Checked saves a Windows LOCAL=user protected token for seven days in the active local storage root (package LocalFolder or unpackaged AppData/FoodHub). SQL contains the SHA-256 digest, never the bearer token. Reads never renew expiry. Corrupt/decryption-failed storage is treated as Guest.
 
 SQL Server must validate a remembered token before displaying private data. During database or configuration failures, private profile state is hidden and retry remains available. Invalid/revoked/expired tokens are cleared. SessionState checks expiry while the application remains open and discards workflow results after account changes. Each page/window cancels its own pending work when closed.
 
@@ -33,3 +33,5 @@ SQL Server must validate a remembered token before displaying private data. Duri
 This is local educational authentication using direct SQL Server access, not a remotely secured service. A production deployment would put authorization and database credentials behind a server. JWT is deliberately not used in this slice. This project neither calls Foodhub APIs nor sends email.
 
 Database configuration is separate from authentication persistence. Saving/resetting database Settings requests remembered-token removal before restoration on the next launch; it does not transfer an authenticated session to a different database.
+
+A packaged storage upgrade imports only settings, not remembered authentication. Sign in again in the packaged app; legacy unpackaged tokens are left untouched. A development database reset removes all accounts/sessions and requires new registration.

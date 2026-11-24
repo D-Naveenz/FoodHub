@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FoodHub.Core.Migrations
 {
     [DbContext(typeof(FoodHub_DevContext))]
-    [Migration("20261124065714_Accounts")]
-    partial class Accounts
+    [Migration("20261124142837_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -20,3 +20,5 @@ Keep basket state in memory provisionally and clear/reconcile it at account chan
 ## Account follow-up verification
 
 Exercise the complete GUI account journey, remembered-token restart, image picker validation, database-outage retry, high text scaling and screen-reader behavior using a disposable account database. Review [Accounts](Accounts.md) for the implemented rules. Password recovery/change and email changes require a later explicit slice.
+
+The implemented infrastructure now keeps generated startup, constructor-built host composition, a hosted main-window lifecycle, package-aware local storage, Development-only Explorer access, and one initial EF migration with explicit disposable-development reset. These changes do not implement deferred ordering pages.

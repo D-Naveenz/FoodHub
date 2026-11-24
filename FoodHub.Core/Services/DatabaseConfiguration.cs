@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -22,7 +23,7 @@ public sealed class ApplicationPaths
     }
     /// <summary>Application content, independent of the working directory.</summary>
     public string InstallDirectory { get; }
-    /// <summary>Writable per-user data, retaining existing session and theme locations.</summary>
+    /// <summary>Writable data root; the UI supplies package LocalFolder while standalone tools default to LocalAppData/FoodHub.</summary>
     public string UserDirectory { get; }
     /// <summary>Persistent overrides and session-reset marker.</summary>
     public string SettingsFile => Path.Combine(UserDirectory, "appsettings.json");
@@ -108,7 +109,7 @@ public sealed class DatabaseConfiguration : IDesignTimeDbContextFactory<FoodHub_
 }
 
 /// <summary>Persists next-launch settings atomically without changing the active database.</summary>
-public sealed class DatabaseSettingsStore(ApplicationPaths paths, DatabaseSettings active)
+public sealed class DatabaseSettingsStore(ILocalStorageService storage, DatabaseSettings active)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     /// <summary>Survives Settings navigation until restart.</summary>
@@ -168,20 +169,15 @@ public sealed class DatabaseSettingsStore(ApplicationPaths paths, DatabaseSettin
     /// <summary>Retains unrelated settings; an explicit Save/Reset can repair malformed JSON.</summary>
     private async Task<JsonObject> ReadForRepairAsync(CancellationToken cancellation)
     {
-        if (!File.Exists(paths.SettingsFile)) return new JsonObject();
-        try { return JsonNode.Parse(await File.ReadAllTextAsync(paths.SettingsFile, cancellation)) as JsonObject ?? new JsonObject(); }
+        var bytes = await storage.ReadAsync("appsettings.json", cancellation);
+        if (bytes is null) return new JsonObject();
+        try { return JsonNode.Parse(bytes) as JsonObject ?? new JsonObject(); }
         catch (JsonException) { return new JsonObject(); }
     }
     /// <summary>Replaces the destination only after a complete file is ready on the same volume.</summary>
     private async Task WriteAsync(JsonObject json, CancellationToken cancellation)
     {
-        Directory.CreateDirectory(paths.UserDirectory);
-        var temporary = paths.SettingsFile + ".tmp";
-        try
-        {
-            await File.WriteAllTextAsync(temporary, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellation);
-            File.Move(temporary, paths.SettingsFile, overwrite: true);
-        }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        await storage.WriteAsync("appsettings.json", Encoding.UTF8.GetBytes(
+            json.ToJsonString(new JsonSerializerOptions { WriteIndented = true })), cancellation);
     }
 }

@@ -4,8 +4,6 @@ using FoodHub.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Options;
 
 namespace FoodHub.WinUI.Test;
@@ -107,56 +105,29 @@ public sealed class SqlIntegrationTests
         Assert.IsTrue((await service.ValidateAsync(ticket.Token)).Error == AccountError.Expired, "remembered session expires exactly at seven days");
     }
 
-    /// <summary>Adopting the baseline preserves customer/order identities and never grants legacy credentials.</summary>
+    /// <summary>A deliberate recreation drops old rows while repeat migration preserves current rows.</summary>
     [TestMethod]
-    public async Task LegacyUpgradePreservesCustomersAndReceipts()
+    public async Task RecreationProducesOneCurrentSchema()
     {
         await using var target = await SqlTestDatabase.CreateAsync(_connection);
-        await using var baseline = await SqlTestDatabase.CreateAsync(_connection);
-        await using var legacy = target.Open();
-        foreach (var batch in BaselineSql.Batches()) await legacy.Database.ExecuteSqlRawAsync(batch);
-        await legacy.Database.ExecuteSqlRawAsync("INSERT dbo.Customers(FullName,PhoneNumber) VALUES(N'Legacy customer',N'0770000000');");
-        // Compare against a baseline-only schema before writing migration history.
-        var baselineId = legacy.Database.GetMigrations().Single(m => m.EndsWith("_Baseline", StringComparison.Ordinal));
-        var originalId = await legacy.Customers.Select(c => c.CustomerId).SingleAsync();
-        await legacy.Database.ExecuteSqlRawAsync("""
-            INSERT dbo.CustomerAddresses(CustomerId,AddressLabel,AddressLine1,City) VALUES(1,N'Legacy',N'Legacy road',N'Colombo');
-            INSERT dbo.MenuCategories(CategoryName) VALUES(N'Legacy menu');
-            INSERT dbo.MenuItems(MenuCategoryId,ItemName,UnitPrice) VALUES(1,N'Legacy meal',125);
-            DECLARE @items dbo.BasketItemList, @order int;
-            INSERT @items VALUES(1,2);
-            EXEC dbo.PlaceOrder 1,1,@items,@order OUTPUT;
-            """);
-        var legacyReceipt = await legacy.Orders.AsNoTracking().SingleAsync();
-        await using (var reference = baseline.Open())
-            foreach (var batch in BaselineSql.Batches()) await reference.Database.ExecuteSqlRawAsync(batch);
-        await BaselineVerifier.VerifyAsync(target.ConnectionString, baseline.ConnectionString);
-        var history = legacy.GetService<IHistoryRepository>();
-        await legacy.Database.ExecuteSqlRawAsync(history.GetCreateIfNotExistsScript());
-        await legacy.Database.ExecuteSqlRawAsync(history.GetInsertScript(new HistoryRow(baselineId, "10.0.15")));
-        await legacy.Database.MigrateAsync();
-        Assert.IsTrue((await legacy.Customers.SingleAsync()).CustomerId == originalId && (await legacy.Customers.SingleAsync()).UserId is null, "upgrade preserves legacy customer identity without granting credentials");
-        var upgradedReceipt = await legacy.Orders.AsNoTracking().SingleAsync();
-        Assert.IsTrue(upgradedReceipt.OrderId == legacyReceipt.OrderId && upgradedReceipt.TotalAmount == legacyReceipt.TotalAmount
-            && upgradedReceipt.DeliveryAddressLine1 == legacyReceipt.DeliveryAddressLine1 && await legacy.OrderStatusHistories.CountAsync() == 1,
-            "upgrade preserves order identity, receipt snapshots and tracking history");
+        await using (var db = target.Open())
+        {
+            await db.Database.MigrateAsync();
+            await db.Database.ExecuteSqlRawAsync("INSERT dbo.Customers(FullName,PhoneNumber) VALUES(N'Disposable',N'0770000000');");
+            await db.Database.MigrateAsync();
+            Assert.AreEqual(1, await db.Customers.CountAsync());
+            Assert.AreEqual(1, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        }
+        // Only tests can invoke the recreation primitive with a generated database; the CLI always validates its target first.
+        await DevelopmentDatabase.RecreateAsync(target.ConnectionString);
+        await using var rebuilt = target.Open();
+        Assert.AreEqual(0, await rebuilt.Customers.CountAsync());
+        Assert.AreEqual(0, await rebuilt.Users.CountAsync());
+        Assert.AreEqual(5, await rebuilt.OrderStatuses.CountAsync());
+        Assert.AreEqual(1, await rebuilt.StoreSettings.CountAsync());
+        Assert.AreEqual(1, (await rebuilt.Database.GetAppliedMigrationsAsync()).Count());
     }
 
-    /// <summary>The baseline comparison accepts matching metadata and rejects an unexpected table.</summary>
-    [TestMethod]
-    public async Task BaselineComparisonRejectsDrift()
-    {
-        await using var target = await SqlTestDatabase.CreateAsync(_connection);
-        await using var reference = await SqlTestDatabase.CreateAsync(_connection);
-        await using var targetDb = target.Open();
-        await using var referenceDb = reference.Open();
-        await targetDb.Database.MigrateAsync();
-        await referenceDb.Database.MigrateAsync();
-        await BaselineVerifier.VerifyAsync(target.ConnectionString, reference.ConnectionString);
-        await targetDb.Database.ExecuteSqlRawAsync("CREATE TABLE dbo.UnexpectedDrift(Id int NOT NULL);");
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
-            BaselineVerifier.VerifyAsync(target.ConnectionString, reference.ConnectionString));
-    }
 }
 
 /// <summary>Deterministic UTC clock for expiry tests without sleeps.</summary>

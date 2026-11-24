@@ -28,7 +28,7 @@ An educational Foodhub-inspired WinUI 3 customer application backed by SQL Serve
 
 Use Windows, a compatible .NET SDK, Windows SDK, and Visual Studio WinUI/MSIX tooling. UI targets net10.0-windows10.0.26100.0; Core targets net10.0. EF SQL Server/design tools are 10.0.15. MVVM uses CommunityToolkit.Mvvm 8.4.2; password hashing uses Microsoft.Extensions.Identity.Core 10.0.0. Windows packages retain the existing floating references; the inspected restore resolves Windows App SDK 2.7.0.
 
-Debug builds load the local Windows-authentication connection from `appsettings.Development.json`; no shell environment variable is required. Release defaults to Production with an empty connection. Use **Settings → Database** to test and save a Windows-authentication connection, then restart. Follow the [database guide](docs/Database.md) to provision/migrate an existing target safely. Guest navigation and Settings remain available when configuration or SQL is unavailable.
+Debug builds load the local Windows-authentication connection from `appsettings.Development.json`; no shell environment variable is required. Release defaults to Production with an empty connection. Use **Settings → Database** to test and save a Windows-authentication connection, then restart. Follow the [database guide](docs/Database.md) for explicit migrate/reset commands. Local FoodHub_Dev data is disposable; reset drops and recreates it without a backup. Guest navigation and Settings remain available when configuration or SQL is unavailable.
 
 ```powershell
 $env:FOODHUB_CONNECTION_STRING = 'Server=localhost;Database=FoodHub_Dev;Integrated Security=True;TrustServerCertificate=True'
@@ -36,18 +36,18 @@ dotnet restore FoodHub.slnx -p:Platform=x64
 dotnet build FoodHub.slnx -p:Platform=x64 --no-restore
 ```
 
-Open FoodHub.slnx and launch the packaged profile with a matching installed Windows App SDK runtime. For an unpackaged build that includes the Windows App SDK locally:
+Open FoodHub.slnx and launch the packaged profile. Both app and test projects default `WindowsAppSDKSelfContained` to true, so ordinary builds include the matching native Windows App SDK without requiring a globally installed version. This setting is separate from .NET `SelfContained`. For an unpackaged build:
 
 ```powershell
-dotnet build FoodHub/FoodHub.csproj -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true
+dotnet build FoodHub/FoodHub.csproj -p:Platform=x64 -p:WindowsPackageType=None
 & './FoodHub/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64/FoodHub.exe'
 ```
 
-The explicit Platform determines runtime architecture even with an ARM64 SDK. App data lives under `%LOCALAPPDATA%/FoodHub`; no password or private profile cache is stored there.
+The explicit Platform determines runtime architecture even with an ARM64 SDK. App data lives in package `ApplicationData.Current.LocalFolder` when packaged, or `%LOCALAPPDATA%/FoodHub` when unpackaged; no password or private profile cache is stored there. In Development, Settings shows the active path and opens it in File Explorer.
 
 ## Verification
 
-`FoodHub.WinUI.Test` is the WinUI MSTest application and is included in the solution. It contains 32 unit/model/configuration cases, seven Windows-storage cases, and four SQL integration scenarios. The template's sample assertions and the old console runners were removed after their meaningful coverage was migrated.
+`FoodHub.WinUI.Test` is the WinUI MSTest application and is included in the solution. It includes configuration/storage/developer-tooling tests, native hosted-window lifecycle checks, and three SQL integration scenarios. See docs/Verification.md for the latest actual counts and deployment-specific skips. The template's sample assertions and the old console runners were removed after their meaningful coverage was migrated.
 
 For the template's packaged path, build x64 and run tests from Visual Studio Test Explorer. Set `FOODHUB_TEST_CONNECTION_STRING` before launching Visual Studio if SQL integration should run. Tests that create/access XAML objects should use `[UITestMethod]`; the app publishes its dispatcher queue for that purpose.
 
@@ -65,8 +65,12 @@ Optionally set a dedicated SQL Server test identity before running:
 $env:FOODHUB_TEST_CONNECTION_STRING = 'Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True'
 ```
 
-Without this variable, only the four SQL cases are reported as skipped. A configured but unreachable server fails those tests. SQL tests create uniquely named FoodHub_Test databases and remove only those databases afterward; the identity needs CREATE DATABASE permission. Windows-storage tests use isolated temporary directories and never the customer's saved session. Categories `Unit`, `WindowsStorage`, and `SqlIntegration` allow filtering in Test Explorer. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
+Without this variable, only the three SQL cases are reported as skipped. A configured but unreachable server fails those tests. SQL tests create uniquely named FoodHub_Test databases and remove only those databases afterward; the identity needs CREATE DATABASE permission. Windows-storage tests use isolated temporary directories and never the customer's saved session. Categories `Unit`, `WindowsStorage`, and `SqlIntegration` allow filtering in Test Explorer. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
 
 The command-line host closes its test window and returns the runner's exit code. The packaged path retains the template's VSTest host; the unpackaged path uses MTP because [VSTest's WinUI provider requires a package manifest](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-winui#configure-an-unpackaged-app).
 
 Preserve comments/provenance, document authored APIs and update repository guidance with behavior changes. Graphify remains local-only, with ignored generated output and no cloud extraction.
+
+### Windows App SDK activation failures
+
+`REGDB_E_CLASSNOTREG` in `DeploymentInitializeOptions` or a Windows App Runtime module initializer happens before application/host/database startup. Normal builds now include the native Windows App SDK. If upgrading an older build, stop the debug session, clean/rebuild the application, and let Visual Studio redeploy the packaged profile. An explicit `-p:WindowsAppSDKSelfContained=false` opts back into framework-dependent deployment and requires the matching installed Windows App Runtime. Do not disable initialization to hide a missing runtime.

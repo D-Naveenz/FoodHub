@@ -3,14 +3,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace FoodHub.Core.Models;
 
-/// <summary>Keeps the EF snapshot aligned with constraints that the original SQL script owns.</summary>
+/// <summary>Maintains the SQL constraints and index conventions used by the current EF model.</summary>
 public partial class FoodHub_DevContext
 {
-    /// <summary>The baseline has only explicitly declared indexes, not convention-created FK indexes.</summary>
+    /// <summary>Use only explicitly declared indexes rather than adding implicit foreign-key indexes.</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         => configurationBuilder.Conventions.Remove(typeof(ForeignKeyIndexConvention));
 
-    private static void ConfigureBaseline(ModelBuilder b)
+    private static void ConfigureConstraints(ModelBuilder b)
     {
         b.Entity<Customer>().ToTable("Customers", t =>
         {

@@ -12,7 +12,7 @@ public partial class FoodHub_DevContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
-        ConfigureBaseline(modelBuilder);
+        ConfigureConstraints(modelBuilder);
         modelBuilder.Entity<User>(e =>
         {
             e.ToTable("Users");
@@ -40,6 +40,3 @@ public partial class FoodHub_DevContext
         });
     }
 }
-
-
-
