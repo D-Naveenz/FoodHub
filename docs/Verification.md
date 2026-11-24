@@ -34,6 +34,12 @@ Using the self-contained executable, observed the branded Home screen, supplied 
 
 Direct execution of the framework-dependent executable without package deployment failed before application code with Windows App SDK runtime activation error REGDB_E_CLASSNOTREG. The documented self-contained launch passed. Packaged deployment was not independently verified.
 
+## Account-window presentation refinement — 2026-11-24
+
+- Reduced initial height from 680 to 600 effective pixels and retained the existing banner colors, logo sizing and promotional-image margins.
+- Replaced the combined show/hide form with separate login/registration pages hosted by a Frame using native horizontal slide transitions. Replaced the secondary account button with a click-handled hyperlink footer and removed the Cancel button.
+- The x64 unpackaged self-contained application build passed with zero warnings/errors. Manual execution checked both hyperlink routes, the registration scrollbar and bottom submit/return link, the absence of Cancel, initial focus, and owner re-enablement after title-bar close. Password clearing and delegate detachment were inspected in source; no credential submission or database/schema changes were part of this refinement.
+
 ## Remaining manual acceptance scenarios
 
 These have implementation and lower-layer coverage where applicable, but were not claimed as a complete GUI run:

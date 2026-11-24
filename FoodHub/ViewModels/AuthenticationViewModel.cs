@@ -58,7 +58,13 @@ public partial class AuthenticationViewModel : ObservableObject, IDisposable
     {
         _services = services; IsRegistration = registration;
         SubmitCommand = new(SubmitAsync, () => !IsBusy);
-        SwitchCommand = new(() => { IsRegistration = !IsRegistration; Message = ""; ClearPasswords(); }, () => !IsBusy);
+        SwitchCommand = new(() =>
+        {
+            // Clear the outgoing page before changing the mode: navigation attaches the incoming page's password fields.
+            ClearPasswords();
+            Message = "";
+            IsRegistration = !IsRegistration;
+        }, () => !IsBusy);
     }
 
     /// <summary>Submits one form, ignores obsolete results and clears PasswordBox values on every exit.</summary>
@@ -85,5 +91,11 @@ public partial class AuthenticationViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Cancels requests and suppresses late results after the window closes.</summary>
-    public void Dispose() { _lifetime.Cancel(); }
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        ClearPasswords();
+        ReadPasswords = static () => ("", "");
+        ClearPasswords = static () => { };
+    }
 }

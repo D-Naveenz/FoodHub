@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
         Title="FoodHub - My Account">
+
     <Grid x:Name="Root" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="2*"/>
@@ -24,46 +25,9 @@
                        AutomationProperties.AccessibilityView="Raw"/>
             </Border>
         </Grid>
-        <Grid Grid.Column="1" Padding="32">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
-                <StackPanel Spacing="16" HorizontalAlignment="Stretch">
-                    <TextBlock x:Name="Heading" Text="Welcome back" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap"/>
-                    <StackPanel x:Name="RegistrationFields" Spacing="12" Visibility="Collapsed">
-                        <TextBox Header="Display name" MaxLength="80" Text="{x:Bind ViewModel.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBox Header="Full name" MaxLength="150" Text="{x:Bind ViewModel.FullName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBox Header="Phone number" MaxLength="32" Text="{x:Bind ViewModel.Phone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                    </StackPanel>
-                    <TextBox x:Name="EmailBox" 
-                             Header="Email" 
-                             MaxLength="254" 
-                             Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                             InputScope="EmailSmtpAddress"/>
-                    <PasswordBox x:Name="Password" 
-                                 Header="Password" 
-                                 PasswordRevealMode="Peek" 
-                                 KeyDown="Password_KeyDown"/>
-                    <PasswordBox x:Name="Confirmation" Header="Confirm password" PasswordRevealMode="Peek" Visibility="Collapsed"/>
-                    <TextBlock x:Name="PasswordHint" Text="Use 12–128 characters. Spaces are preserved." TextWrapping="Wrap" Visibility="Collapsed"/>
-                    <CheckBox x:Name="RememberBox" Content="Stay signed in" IsChecked="{x:Bind ViewModel.Remember, Mode=TwoWay}"/>
-                    <InfoBar x:Name="Feedback" Severity="Error" IsClosable="False" Message="{x:Bind ViewModel.Message, Mode=OneWay}"/>
-                    <ProgressRing x:Name="BusyIndicator" 
-                                  Visibility="Collapsed" 
-                                  IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" 
-                                  Width="24" 
-                                  Height="24" 
-                                  HorizontalAlignment="Left"/>
-                    <Button x:Name="SubmitButton" 
-                            Content="Log in" 
-                            Command="{x:Bind ViewModel.SubmitCommand}" 
-                            Style="{StaticResource AccentButtonStyle}" 
-                            HorizontalAlignment="Stretch"/>
-                    <Button x:Name="SwitchButton" 
-                            Content="Create an account" 
-                            Command="{x:Bind ViewModel.SwitchCommand}" 
-                            HorizontalAlignment="Stretch"/>
-                    <Button Content="Cancel" Click="Cancel_Click" HorizontalAlignment="Stretch"/>
-                </StackPanel>
-            </ScrollViewer>
+        <Grid Grid.Column="1" Background="#54100f" Padding="8">
+            <!-- Only the form pages move; the banner and native window remain in place. -->
+            <Frame x:Name="FormFrame" />
         </Grid>
     </Grid>
 </Window>

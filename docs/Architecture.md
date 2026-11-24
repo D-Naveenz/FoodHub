@@ -4,7 +4,7 @@
 
 FoodHub is an educational WinUI 3 customer application. The main window provides Home, Menu, Basket, Orders, Profile, About and Settings navigation. Ordering pages are clearly labeled skeletons. Accounts, sessions, editable contact details, addresses and profile-photo selection are implemented; ordering is not.
 
-The account window is a separate owned native window. Its owner is disabled until it closes. Both forms share one window and use a scrollable right panel; the red banner is composed from existing local images. Profile stays in the main window. A `PersonPicture` shows the supplied guest image, a saved account photo, or initials derived from display name.
+The account window is a separate owned native window. Its owner is disabled until it closes. The 900 × 600 effective-pixel account window hosts separate LoginPage and RegistrationPage views in a Frame. Click-handled HyperlinkButtons switch forms with native horizontal slide transitions while the red image banner remains fixed. Each page scrolls independently; the native close button dismisses the window. Profile stays in the main window. A `PersonPicture` shows the supplied guest image, a saved account photo, or initials derived from display name.
 
 ## Responsibilities and data flow
 
@@ -17,7 +17,7 @@ WinUI page/window -> observable view model -> AccountService -> short-lived EF c
 
 `FoodHub.Core` owns entities, EF mappings/migrations, password hashing, opaque token issuance, validation and customer workflows. `FoodHub` owns native windows, navigation, photo decoding, Windows-protected storage and theme settings. Windows types do not enter Core.
 
-`AuthenticationViewModel` owns transient form submission and cancellation. PasswordBox values are read only at submission and cleared after submission/switching/closure; passwords do not enter persistent observable state. `ProfileViewModel` owns editable form state. Pages handle view lifetime and native picker/image behavior. Commands suppress duplicate submissions; session generation checks discard results after account changes.
+`AuthenticationViewModel` owns transient form submission and cancellation and is shared between the two account pages. Each page attaches its own password controls while active, clears/detaches them when navigating away, and the frame retains no form history. PasswordBox values are read only at submission and cleared after submission/switching/closure; passwords do not enter persistent observable state. `ProfileViewModel` owns editable form state. Pages handle view lifetime and native picker/image behavior. Commands suppress duplicate submissions; session generation checks discard results after account changes.
 
 ## Account and session model
 

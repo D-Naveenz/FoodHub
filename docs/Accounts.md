@@ -6,6 +6,12 @@
 
 Results distinguish validation, invalid credentials, expiry, database failure and conflict. ProfileDetails contains safe display/contact/photo/address data, never password hashes. SessionTicket contains the raw token only for the application session coordinator; never log or serialize it as general profile data.
 
+## Login and registration presentation
+
+The owned account window opens at approximately 900 × 600 effective pixels, constrained to the current display. A fixed branded banner sits beside a Frame containing separate login and registration pages. The login submit button is followed by “New Customer? Register”, where Register is a HyperlinkButton with a click handler. Registration offers the matching “Already a customer? Log in” link. Native slide transitions move only the form page; both pages scroll when their content exceeds the available height.
+
+There is no Cancel button; the native window close button dismisses the account window and restores its owner. Shared non-secret form state survives switching, while passwords are cleared before navigation and on close. Switching is disabled during submission, and form pages are not retained in navigation history.
+
 ## Validation
 
 - Display name: required, up to 80 characters. Full name: required, up to 150. Phone: required, up to 32.
