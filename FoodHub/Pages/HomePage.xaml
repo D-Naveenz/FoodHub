@@ -1,17 +1,39 @@
-<Page x:Class="FoodHub.Pages.HomePage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
- <ScrollViewer><StackPanel Padding="32" Spacing="24">
-  <Grid Background="#D92A27" Padding="28" CornerRadius="12" MinHeight="230">
-   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-   <StackPanel Spacing="20" VerticalAlignment="Center">
-    <Image Source="ms-appx:///Assets/FoodHubLogos/logo-foodhub-white.png" MaxWidth="260" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="FoodHub"/>
-    <TextBlock Text="Welcome to FoodHub" Foreground="White" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap"/>
-    <TextBlock Text="Your next takeaway starts here." Foreground="White" TextWrapping="Wrap"/>
-   </StackPanel>
-   <Image Grid.Column="1" Source="ms-appx:///Assets/Promotions/foodhub-global.png" Stretch="Uniform" MaxHeight="250" AutomationProperties.AccessibilityView="Raw"/>
-  </Grid>
-  <TextBlock Text="Make yourself at home" Style="{StaticResource SubtitleTextBlockStyle}"/>
-  <Button Click="Menu_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="20"><StackPanel Spacing="8"><TextBlock Text="Explore the menu" Style="{StaticResource SubtitleTextBlockStyle}"/><TextBlock Text="Open the menu page"/></StackPanel></Button>
-  <Button Click="Basket_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="20"><StackPanel Spacing="8"><TextBlock Text="Your basket" Style="{StaticResource SubtitleTextBlockStyle}"/><TextBlock Text="Open the basket page"/></StackPanel></Button>
-  <Button Click="Profile_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="20"><StackPanel Spacing="8"><TextBlock Text="Your FoodHub profile" Style="{StaticResource SubtitleTextBlockStyle}"/><TextBlock Text="Sign in or manage your contact details and addresses" TextWrapping="Wrap"/></StackPanel></Button>
- </StackPanel></ScrollViewer>
+<Page x:Class="FoodHub.Pages.HomePage" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="24">
+            <Grid Background="#D92A27" Padding="28" CornerRadius="12" MinHeight="230">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="20" VerticalAlignment="Center">
+                    <Image Source="ms-appx:///Assets/FoodHubLogos/logo-foodhub-white.png" MaxWidth="260" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="FoodHub"/>
+                    <TextBlock Text="Welcome to FoodHub" Foreground="White" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap"/>
+                    <TextBlock Text="Your next takeaway starts here." Foreground="White" TextWrapping="Wrap"/>
+                </StackPanel>
+                <Image Grid.Column="1" Source="ms-appx:///Assets/Promotions/foodhub-global.png" Stretch="Uniform" MaxHeight="250" AutomationProperties.AccessibilityView="Raw"/>
+            </Grid>
+            <TextBlock Text="Make yourself at home" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <Button Click="Menu_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="20">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Explore the menu" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <TextBlock Text="Open the menu page"/>
+                </StackPanel>
+            </Button>
+            <Button Click="Basket_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="20">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Your basket" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <TextBlock Text="Open the basket page"/>
+                </StackPanel>
+            </Button>
+            <Button Click="Profile_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="20">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Your FoodHub profile" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <TextBlock Text="Sign in or manage your contact details and addresses" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

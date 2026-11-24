@@ -1,7 +1,10 @@
-<Page x:Class="FoodHub.Pages.ConfirmationPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
- <ScrollViewer><StackPanel Padding="32" Spacing="24">
-  <TextBlock Text="Order confirmation" Style="{StaticResource TitleTextBlockStyle}"/>
-  <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="A saved order number and receipt will appear here after checkout."/>
-  
- </StackPanel></ScrollViewer>
+<Page x:Class="FoodHub.Pages.ConfirmationPage" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="24">
+            <TextBlock Text="Order confirmation" Style="{StaticResource TitleTextBlockStyle}"/>
+            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="A saved order number and receipt will appear here after checkout."/>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

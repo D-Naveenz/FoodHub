@@ -1,9 +1,15 @@
-<Page x:Class="FoodHub.Pages.SettingsPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
- <ScrollViewer><StackPanel Padding="32" Spacing="24" HorizontalAlignment="Left">
-  <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
-  <ComboBox x:Name="ThemePicker" Header="Appearance" MinWidth="240" SelectionChanged="Theme_Changed">
-   <ComboBoxItem Content="Use system setting"/><ComboBoxItem Content="Light"/><ComboBoxItem Content="Dark"/>
-  </ComboBox>
-  <InfoBar x:Name="Feedback" Severity="Error" IsClosable="True"/>
- </StackPanel></ScrollViewer>
+<Page x:Class="FoodHub.Pages.SettingsPage" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="24" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
+            <ComboBox x:Name="ThemePicker" Header="Appearance" MinWidth="240" SelectionChanged="Theme_Changed">
+                <ComboBoxItem Content="Use system setting"/>
+                <ComboBoxItem Content="Light"/>
+                <ComboBoxItem Content="Dark"/>
+            </ComboBox>
+            <InfoBar x:Name="Feedback" Severity="Error" IsClosable="True"/>
+        </StackPanel>
+    </ScrollViewer>
 </Page>
