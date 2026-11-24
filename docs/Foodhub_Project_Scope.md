@@ -1,12 +1,16 @@
 # Foodhub-Inspired Food Ordering and Tracking System
 
+Status: agreed customer-facing baseline, revised 2026-11-24. This is a living scope; later user guidance can revise it. It describes the intended application, not completed functionality. See the [architecture](Architecture.md) for the current implementation and the [roadmap](Development_Roadmap.md) for delivery order.
+
 ## Project objective
 
 Build a customer-facing WinUI 3 desktop app backed by Microsoft SQL Server. A customer can browse a takeaway menu, place a local delivery order, follow its simulated progress, and review past orders. The project demonstrates what a customer sees and does from menu browsing through delivery.
 
 ## Scope assumptions
 
-The application covers one takeaway outlet, delivery orders, one currency, and a fixed delivery fee. Customers use local profiles, and the application works without internet access. This scope covers the complete project before division into versions.
+The agreed application covers one takeaway outlet, delivery orders, one currency, and a fixed delivery fee. Customers use local profiles. Internet access is not required for the intended customer workflows, but a running SQL Server must be reachable. Profile selection is a demonstration feature, not customer authentication. This scope covers the complete project before division into versions.
+
+LKR, a 250.00 fee, and fictional Sri Lankan sample data are provisional demonstration defaults from the SQL script. MVVM, service boundaries, and SQL-first development are provisional technical recommendations, documented separately. The in-memory basket is not required to survive restart; confirmed orders must persist.
 
 ## Functional scope
 
@@ -30,6 +34,8 @@ A clearly labeled demo control advances a sample order one stage at a time and s
 
 Employee management, restaurant dashboards, kitchen operations, driver assignment, live GPS, online payments, customer sign-in, external integrations, and menu administration are outside the project. A seed script supplies the menu data.
 
+These capabilities may be discussed as future extensions. Their appearance in [Foodhub research](Foodhub_Research.md) does not make them requirements. This project does not call Foodhub APIs.
+
 ## Presentation requirements
 
 - Use a photo-led menu with category navigation, clear prices, and visible availability.
@@ -42,3 +48,7 @@ Employee management, restaurant dashboards, kitchen operations, driver assignmen
 1. Create or select a customer, add food to the basket, and place an order. The confirmation shows the correct total and a unique order number.
 2. Advance the order to **Delivered** and verify that the tracking timeline shows each stage in order. Cancel a separate order while it is still eligible.
 3. Restart the app and open both orders from history. Their items, totals, addresses, and statuses are still available.
+4. Reject empty baskets, unavailable items, and missing or wrong-owner addresses without saving a partial order. Show validation feedback in the GUI.
+5. Editing current profile, menu, or store settings does not change a saved order's receipt snapshots. History is limited to the selected profile.
+6. Reject skipped, repeated, backward, and terminal-state transitions. Keep the current status and timestamped history consistent, including when actions compete.
+7. Present useful loading, empty, and database-error states, with accessible status text and keyboard navigation. Label simulated delivery controls clearly.
