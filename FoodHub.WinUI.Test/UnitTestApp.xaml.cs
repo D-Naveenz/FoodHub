@@ -37,16 +37,32 @@ namespace FoodHub.WinUI.Test
         /// Invoked when the application is launched.
         /// </summary>
         /// <param name="args">Details about the launch request and process.</param>
+#if MSTEST_MTP
+        protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+#else
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+#endif
         {
+#if !MSTEST_MTP
             Microsoft.VisualStudio.TestPlatform.TestExecutor.UnitTestClient.CreateDefaultUI();
+#endif
 
             _window = new UnitTestAppWindow();
             _window.Activate();
 
             UITestMethodAttribute.DispatcherQueue = _window.DispatcherQueue;
 
+#if MSTEST_MTP
+            // The WinUI application owns its UI thread and hosts the same MSTest tests in-process.
+            // Propagate failures to the CLI and close the window so automated runs cannot hang.
+            try
+            {
+                Environment.ExitCode = await MicrosoftTestingPlatformApplication.RunAsync(Environment.GetCommandLineArgs()[1..]);
+            }
+            finally { _window.Close(); Exit(); }
+#else
             Microsoft.VisualStudio.TestPlatform.TestExecutor.UnitTestClient.Run(Environment.CommandLine);
+#endif
         }
     }
 }

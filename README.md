@@ -47,14 +47,26 @@ The explicit Platform determines runtime architecture even with an ARM64 SDK. Ap
 
 ## Verification
 
+`FoodHub.WinUI.Test` is the WinUI MSTest application and is included in the solution. It contains 15 unit/model tests, seven Windows-storage tests, and three SQL integration scenarios. The template's sample assertions and the old console runners were removed after their meaningful coverage was migrated.
+
+For the template's packaged path, build x64 and run tests from Visual Studio Test Explorer. Set `FOODHUB_TEST_CONNECTION_STRING` before launching Visual Studio if SQL integration should run. Tests that create/access XAML objects should use `[UITestMethod]`; the app publishes its dispatcher queue for that purpose.
+
+The self-contained unpackaged CLI path runs the same tests with Microsoft.Testing.Platform:
+
 ```powershell
-dotnet run --project FoodHub.Tests
-dotnet run --project FoodHub.Windows.Tests
-# Optional: a dedicated test SQL Server identity with CREATE DATABASE permission.
-$env:FOODHUB_TEST_CONNECTION_STRING = 'Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True'
-dotnet run --project FoodHub.Tests
+dotnet restore FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true
+dotnet build FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true --no-restore
+dotnet run --project FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj --no-build -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -- --progress off
 ```
 
-The dependency-free executable test suite returns nonzero on assertion failure. SQL integration creates uniquely named FoodHub_Test databases and removes only those databases afterward. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
+Optionally set a dedicated SQL Server test identity before running:
+
+```powershell
+$env:FOODHUB_TEST_CONNECTION_STRING = 'Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True'
+```
+
+Without this variable, only the three SQL cases are reported as skipped. A configured but unreachable server fails those tests. SQL tests create uniquely named FoodHub_Test databases and remove only those databases afterward; the identity needs CREATE DATABASE permission. Windows-storage tests use isolated temporary directories and never the customer's saved session. Categories `Unit`, `WindowsStorage`, and `SqlIntegration` allow filtering in Test Explorer. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
+
+The command-line host closes its test window and returns the runner's exit code. The packaged path retains the template's VSTest host; the unpackaged path uses MTP because [VSTest's WinUI provider requires a package manifest](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-winui#configure-an-unpackaged-app).
 
 Preserve comments/provenance, document authored APIs and update repository guidance with behavior changes. Graphify remains local-only, with ignored generated output and no cloud extraction.

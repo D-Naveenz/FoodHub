@@ -6,15 +6,35 @@
     <RootNamespace>FoodHub.WinUI.Test</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
+    <!-- Use the selected target architecture even when the development SDK is ARM64. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x86'">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
     <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
-    <WinUIDSKReferences>false</WinUIDSKReferences>
+    <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
+
+  <!-- Keep the template's packaged Test Explorer host. The unpackaged CLI path uses MTP,
+       since VSTest's WinUI provider requires a package manifest. Both discover the same MSTest tests. -->
+  <PropertyGroup Condition="'$(WindowsPackageType)' == 'None'">
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
+    <GenerateTestingPlatformApplicationHelper>true</GenerateTestingPlatformApplicationHelper>
+    <DefineConstants>$(DefineConstants);MSTEST_MTP</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FoodHub.Core\FoodHub.Core.csproj" />
+    <!-- Test the same protected-storage implementation without starting the customer app. -->
+    <Compile Include="..\FoodHub\Services\SessionStorage.cs" Link="Services\SessionStorage.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <Page Remove="UnitTestApp.xaml" />

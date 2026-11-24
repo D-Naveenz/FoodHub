@@ -4,19 +4,15 @@
 
 - Full solution x64 Debug build: passed with zero warnings/errors, using explicit restore and disabled build servers in this environment.
 - Unpackaged x64 build with `WindowsPackageType=None` and `WindowsAppSDKSelfContained=true`: passed with zero warnings/errors and launched successfully.
-- `FoodHub.Tests`: 38 logic/SQL Server assertions passed. These cover input limits, exact password handling, salt/hash verification, rehash-on-login, opaque-token issuance, fixed expiry, migration snapshot consistency, original SQL object retention, fresh setup, baseline comparison, legacy customer/order preservation, duplicate-email races, no partial registrations, address ownership/referenced-address protection, receipt snapshots, order-status rules, restoration and revocation.
-- `FoodHub.Windows.Tests`: seven assertions passed using the actual Windows data-protection storage class in an isolated temporary directory. Verified no plaintext token on disk, restoration through a new storage instance, memory-only/sign-out removal, corrupt/oversized-file rejection, and pending-write/sign-out serialization.
-- Integration databases use generated FoodHub_Test names and are removed by the runner; application data is never the integration target.
+- Before migration to MSTest, the original runners passed 38 account/model/SQL assertions and seven protected-storage assertions. Their meaningful coverage now lives in `FoodHub.WinUI.Test`; the obsolete console projects and template equality/default-Grid samples were removed.
+- The migrated application contains 25 discoverable MSTest cases: 15 account-rule/model/script tests, seven Windows-storage tests, and three end-to-end SQL scenarios (fresh accounts/order rules, legacy upgrade preservation, and schema drift).
+- With the local SQL test connection configured: all 25 migrated MSTest cases passed, with zero skipped or failed. The unpackaged self-contained x64 test-app build passed with zero warnings/errors.
+- Without a test connection: 22 passed, three SQL tests skipped, zero failures. The unconfigured cases use Assert.Inconclusive, so skips are visible in runner/Test Explorer results.
+- SQL cases retain disposable database isolation and cleanup, including the deliberate concurrent-registration race. Protected-storage tests retain isolated directories, exact file cleanup, encryption/restoration/corruption checks, and pending-write/sign-out ordering.
 
-Reproduce the core suite:
+Use the restore/build/run commands in [README](../README.md#verification). Optionally set `FOODHUB_TEST_CONNECTION_STRING` to a dedicated test-server identity with CREATE DATABASE permission. A configured connection failure fails the SQL tests rather than hiding it as a skip.
 
-```powershell
-$env:FOODHUB_TEST_CONNECTION_STRING = 'Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True'
-dotnet run --project FoodHub.Tests
-dotnet run --project FoodHub.Windows.Tests
-```
-
-Omitting the test connection runs logic/model/script checks and explicitly skips SQL integration. The test-server identity needs CREATE DATABASE permission. These are executable assertion suites rather than a test-framework package; failures return nonzero.
+The packaged startup retains the template's Visual Studio Test Explorer integration and publishes the WinUI dispatcher for UITestMethod; packaged execution was not independently exercised in this migration. For reproducible CLI verification, the same application can be built unpackaged/self-contained and hosts Microsoft.Testing.Platform in-process; it publishes the runner exit code and closes the window on completion. The current migrated cases do not require the XAML UI thread; setting up the dispatcher preserves support for future actual UI-component tests.
 
 ## Development database upgrade
 
@@ -50,6 +46,6 @@ These have implementation and lower-layer coverage where applicable, but were no
 
 ## Local graph and maintenance
 
-Local code-only Graphify extraction was refreshed without cloud calls or semantic document/image extraction. The final refreshed graph has 676 nodes/1230 edges. Extraction warned that top-level database-tool and Windows-test programs and the standalone demo seed yielded no symbols; those files were inspected directly. Graph output remains ignored. CodeGraph was unavailable and was not installed.
+Local code-only Graphify extraction was refreshed without cloud calls or semantic document/image extraction. After test migration, the refreshed graph has 787 nodes/1448 edges. The assembly-level test configuration yields no symbols, as expected; top-level database-tool code and the standalone demo seed also require direct inspection where graph coverage is incomplete. Graph output remains ignored. CodeGraph was unavailable and was not installed.
 
 The existing user change in `.vscode/settings.json` was left untouched. Historical scaffold provenance and template teaching comments were preserved. The old embedded-connection `#warning` was removed because context configuration now comes from external options/environment; EF Power Tools configuration was archived as the user-selected migration workflow replaced regeneration.
