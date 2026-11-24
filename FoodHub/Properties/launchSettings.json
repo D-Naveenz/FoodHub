@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FoodHub (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "FoodHub (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
