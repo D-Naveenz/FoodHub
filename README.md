@@ -1,5 +1,7 @@
 # FoodHub
 
+Current version: **v0.1.0**. See [Changelog](CHANGELOG.md) for this milestone.
+
 An educational Foodhub-inspired WinUI 3 customer application backed by SQL Server. The intended journey is account/profile -> menu -> basket -> delivery checkout -> simulated tracking and order history. This is not an official Foodhub app or an integration with its services.
 
 ## Current implementation
@@ -17,7 +19,7 @@ An educational Foodhub-inspired WinUI 3 customer application backed by SQL Serve
 | [Agent instructions](AGENTS.md) | Educational coding and local exploration rules |
 | [Project scope](docs/Foodhub_Project_Scope.md) | Agreed features and acceptance criteria |
 | [Architecture](docs/Architecture.md) | UI/service boundaries and account lifecycle |
-| [Database](docs/Database.md) | Configuration, fresh setup and nondestructive legacy upgrade |
+| [Database](docs/Database.md) | Configuration, migrations and explicit development reset |
 | [Accounts](docs/Accounts.md) | Validation, ownership and session rules |
 | [Roadmap](docs/Development_Roadmap.md) | Implemented slice and deferred customer workflows |
 | [Verification](docs/Verification.md) | Actual checks and remaining manual scenarios |
