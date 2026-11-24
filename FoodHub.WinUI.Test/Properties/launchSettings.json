@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FoodHub.WinUI.Test (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "FoodHub.WinUI.Test (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

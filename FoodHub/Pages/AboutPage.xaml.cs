@@ -5,8 +5,13 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace FoodHub.Pages
 {
+    /// <summary>Displays application release information from its assembly metadata.</summary>
     public sealed partial class AboutPage : Page
     {
+        /// <summary>Shows the release version without repeating a version constant in UI code.</summary>
+        public string ApplicationVersion { get; } = $"FoodHub v{typeof(App).Assembly.GetName().Version!.ToString(3)}";
+
+        /// <summary>Creates the About page and its version binding.</summary>
         public AboutPage()
         {
             InitializeComponent();

@@ -1,19 +1,39 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<Page
-    x:Class="FoodHub.Pages.SettingsPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="using:FoodHub.Pages"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d">
-
-    <Grid Padding="24,16,24,16" RowSpacing="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Settings" />
-        <TextBlock Grid.Row="1" Text="This is the Settings page" />
-    </Grid>
+<Page x:Class="FoodHub.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="24" HorizontalAlignment="Left" MaxWidth="640">
+            <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
+            <ComboBox x:Name="ThemePicker" Header="Appearance" MinWidth="240" SelectionChanged="Theme_Changed">
+                <ComboBoxItem Content="Use system setting"/>
+                <ComboBoxItem Content="Light"/>
+                <ComboBoxItem Content="Dark"/>
+            </ComboBox>
+            <TextBlock Text="Database" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock Text="Connect using your Windows account. Changes take effect after restarting FoodHub." TextWrapping="Wrap"/>
+            <StackPanel x:Name="DatabaseFields" Spacing="16" MinWidth="280">
+                <TextBox Header="Server" Text="{x:Bind ViewModel.Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Header="Database" Text="{x:Bind ViewModel.Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <CheckBox Content="Trust server certificate" IsChecked="{x:Bind ViewModel.TrustCertificate, Mode=TwoWay}"/>
+                <TextBlock Text="Use certificate trust only for a local development server." TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Content="Test Connection" Command="{x:Bind ViewModel.TestCommand}"/>
+                <Button Content="Save" Command="{x:Bind ViewModel.SaveCommand}"/>
+                <Button Content="Cancel check" Command="{x:Bind ViewModel.CancelCommand}"/>
+            </StackPanel>
+            <Button Content="Use default configuration" Command="{x:Bind ViewModel.ResetCommand}"/>
+            <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
+            <InfoBar x:Name="RestartNotice" Severity="Informational" IsClosable="False" IsOpen="{x:Bind ViewModel.RestartRequired, Mode=OneWay}"
+                     Message="Restart FoodHub to apply saved database settings. You will need to sign in again."/>
+            <InfoBar x:Name="DatabaseFeedback" Severity="Informational" IsClosable="False" Message="{x:Bind ViewModel.Message, Mode=OneWay}"/>
+            <StackPanel x:Name="DevelopmentPanel" Spacing="12" Visibility="Collapsed">
+                <TextBlock Text="Development" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <TextBox Header="Local storage" IsReadOnly="True" Text="{x:Bind Development.StoragePath}" TextWrapping="Wrap"/>
+                <Button Content="Open local storage folder" Command="{x:Bind Development.OpenFolderCommand}"/>
+                <InfoBar x:Name="DevelopmentFeedback" Severity="Error" IsClosable="False" Message="{x:Bind Development.Message, Mode=OneWay}"/>
+            </StackPanel>
+            <InfoBar x:Name="Feedback" Severity="Error" IsClosable="True"/>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

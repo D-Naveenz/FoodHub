@@ -1,0 +1,11 @@
+<Page x:Class="FoodHub.Pages.OrdersPage" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="24">
+            <TextBlock Text="Orders" Style="{StaticResource TitleTextBlockStyle}"/>
+            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Your active and past orders will appear here."/>
+            <Button Content="Preview order-details and tracking page" Click="Next_Click"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,38 @@
+<Page x:Class="FoodHub.Pages.Account.RegistrationPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollMode="Disabled"
+                  HorizontalScrollBarVisibility="Disabled"
+                  HorizontalContentAlignment="Stretch"
+                  Padding="24">
+        <StackPanel Spacing="16" HorizontalAlignment="Stretch">
+            <TextBlock Text="Create your account" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
+            <StackPanel x:Name="Fields" Spacing="12">
+                <TextBox x:Name="DisplayNameBox" Header="Display name" MaxLength="80"
+                         Text="{x:Bind ViewModel.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Header="Full name" MaxLength="150"
+                         Text="{x:Bind ViewModel.FullName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Header="Phone number" MaxLength="32"
+                         Text="{x:Bind ViewModel.Phone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Header="Email" MaxLength="254" InputScope="EmailSmtpAddress"
+                         Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <PasswordBox x:Name="Password" Header="Password" PasswordRevealMode="Peek" />
+                <PasswordBox x:Name="Confirmation" Header="Confirm password" PasswordRevealMode="Peek" KeyDown="Confirmation_KeyDown" />
+                <TextBlock Text="Use 12–128 characters. Spaces are preserved." TextWrapping="Wrap" />
+                <CheckBox Content="Stay signed in" IsChecked="{x:Bind ViewModel.Remember, Mode=TwoWay}" />
+            </StackPanel>
+            <InfoBar x:Name="Feedback" Severity="Error" IsClosable="False"
+                     Message="{x:Bind ViewModel.Message, Mode=OneWay}" />
+            <ProgressRing x:Name="BusyIndicator" Visibility="Collapsed"
+                          IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                          Width="24" Height="24" HorizontalAlignment="Left" />
+            <Button Content="Register" Command="{x:Bind ViewModel.SubmitCommand}"
+                    Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" />
+            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                <TextBlock Text="Already a customer?" VerticalAlignment="Center" />
+                <HyperlinkButton x:Name="SwitchLink" Content="Log in" Click="Login_Click" Padding="4,0" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,47 +1,78 @@
 # FoodHub
 
-An educational Foodhub-inspired WinUI 3 desktop application backed by Microsoft SQL Server. The goal is a complete, understandable customer journey: select a local profile, browse food, build a basket, place a delivery order, follow simulated progress, and review order history.
+Current version: **v0.1.0**. See [Changelog](CHANGELOG.md) for this milestone.
 
-This is a learning project, not an official Foodhub application or an integration with its services.
+An educational Foodhub-inspired WinUI 3 customer application backed by SQL Server. The intended journey is account/profile -> menu -> basket -> delivery checkout -> simulated tracking and order history. This is not an official Foodhub app or an integration with its services.
+
+## Current implementation
+
+- WinUI dashboard with Home, Menu, Basket, Orders, About, Settings and a clickable guest/account avatar.
+- Separate owned modal login/registration window, hashed passwords and opaque expiring local sessions; optional seven-day Windows-protected persistence.
+- Editable account/customer names, phone, saved delivery addresses and profile photos. Email is read-only.
+- Menu, basket, checkout, confirmation and order/tracking pages are navigation skeletons. Ordering workflows remain deferred.
+- Core services and EF Core migrations; original SQL order procedures and receipt snapshots are retained.
 
 ## Start here
 
 | Document | Purpose |
 |---|---|
-| [Agent instructions](AGENTS.md) | Coding, documentation, and local exploration rules |
+| [Agent instructions](AGENTS.md) | Educational coding and local exploration rules |
 | [Project scope](docs/Foodhub_Project_Scope.md) | Agreed features and acceptance criteria |
-| [Foodhub research](docs/Foodhub_Research.md) | Official sources and educational simplifications |
-| [Architecture](docs/Architecture.md) | Current structure and provisional design defaults |
-| [Database workflow](docs/Database.md) | SQL setup, stored procedures, and scaffolding |
-| [Development roadmap](docs/Development_Roadmap.md) | Small implementation milestones and verification |
-| [Local Graphify](docs/Graphify.md) | Local code graph and MCP setup |
+| [Architecture](docs/Architecture.md) | UI/service boundaries and account lifecycle |
+| [Database](docs/Database.md) | Configuration, migrations and explicit development reset |
+| [Accounts](docs/Accounts.md) | Validation, ownership and session rules |
+| [Roadmap](docs/Development_Roadmap.md) | Implemented slice and deferred customer workflows |
+| [Verification](docs/Verification.md) | Actual checks and remaining manual scenarios |
+| [Local Graphify](docs/Graphify.md) | Local graph/MCP workflow |
+| [Foodhub research](docs/Foodhub_Research.md) | Domain inspiration and simplifications |
 
-## Current implementation
+## Build and launch
 
-- `FoodHub`: WinUI Navigation App shell with Home, About, and Settings pages, a custom title bar, and branding assets. Customer workflows are not implemented yet.
-- `FoodHub.Core`: EF Core Power Tools-generated entities, SQL Server context, and wrappers for the order stored procedures.
-- `docs`: a revisable scope, schema/seed script, and development references.
+Use Windows, a compatible .NET SDK, Windows SDK, and Visual Studio WinUI/MSIX tooling. UI targets net10.0-windows10.0.26100.0; Core targets net10.0. EF SQL Server/design tools are 10.0.15. MVVM uses CommunityToolkit.Mvvm 8.4.2; password hashing uses Microsoft.Extensions.Identity.Core 10.0.0. Windows packages retain the existing floating references; the inspected restore resolves Windows App SDK 2.7.0.
 
-The UI targets `net10.0-windows10.0.26100.0`; the core library targets `net10.0`. EF Core SQL Server is referenced at `10.0.15`. Windows App SDK and build packages currently use floating versions, so the project files do not establish a fixed resolved WinUI version.
-
-## Development setup
-
-Use Windows with a .NET SDK supporting the target frameworks, the Windows SDK required by the project, and Visual Studio with WinUI development and MSIX tooling. SQL Server and SSMS or `sqlcmd` are needed for database setup. See [database setup](docs/Database.md) before executing SQL.
-
-Open `FoodHub.slnx`, restore packages, select the `FoodHub` startup project and a matching platform such as x64, then launch using the packaged profile. The project also contains an unpackaged launch profile; verify that path separately when needed.
-
-For a command-line build from the repository root:
+Debug builds load the local Windows-authentication connection from `appsettings.Development.json`; no shell environment variable is required. Release defaults to Production with an empty connection. Use **Settings → Database** to test and save a Windows-authentication connection, then restart. Follow the [database guide](docs/Database.md) for explicit migrate/reset commands. Local FoodHub_Dev data is disposable; reset drops and recreates it without a backup. Guest navigation and Settings remain available when configuration or SQL is unavailable.
 
 ```powershell
-dotnet build FoodHub.slnx -p:Platform=x64
+$env:FOODHUB_CONNECTION_STRING = 'Server=localhost;Database=FoodHub_Dev;Integrated Security=True;TrustServerCertificate=True'
+dotnet restore FoodHub.slnx -p:Platform=x64
+dotnet build FoodHub.slnx -p:Platform=x64 --no-restore
 ```
 
-This is a development command, not a claim that a build or launch has been verified. Database connectivity and GUI workflows also need separate checks.
+Open FoodHub.slnx and launch the packaged profile. Both app and test projects default `WindowsAppSDKSelfContained` to true, so ordinary builds include the matching native Windows App SDK without requiring a globally installed version. This setting is separate from .NET `SelfContained`. For an unpackaged build:
 
-The current generated context defaults to `localhost`, database `FoodHub_Dev`, and Windows integrated authentication. Configuration improvements are planned. No internet service is required by the intended customer workflows, but SQL Server must be reachable. A fresh package restore can require internet access.
+```powershell
+dotnet build FoodHub/FoodHub.csproj -p:Platform=x64 -p:WindowsPackageType=None
+& './FoodHub/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64/FoodHub.exe'
+```
 
-## Learning and contribution approach
+The explicit Platform determines runtime architecture even with an ARM64 SDK. App data lives in package `ApplicationData.Current.LocalFolder` when packaged, or `%LOCALAPPDATA%/FoodHub` when unpackaged; no password or private profile cache is stored there. In Development, Settings shows the active path and opens it in File Explorer.
 
-Preserve useful comments and add XML documentation and flow explanations to authored code. Implement one demonstrable feature at a time. Architecture and database choices are provisional and can change with later guidance; update the documents when a decision changes.
+## Verification
 
-Code exploration uses local Graphify only. Its graph is generated locally and excluded from version control; documentation is read directly. No Foodhub API credentials, cloud graph service, or online payment account is needed.
+`FoodHub.WinUI.Test` is the WinUI MSTest application and is included in the solution. It includes configuration/storage/developer-tooling tests, native hosted-window lifecycle checks, and three SQL integration scenarios. See docs/Verification.md for the latest actual counts and deployment-specific skips. The template's sample assertions and the old console runners were removed after their meaningful coverage was migrated.
+
+For the template's packaged path, build x64 and run tests from Visual Studio Test Explorer. Set `FOODHUB_TEST_CONNECTION_STRING` before launching Visual Studio if SQL integration should run. Tests that create/access XAML objects should use `[UITestMethod]`; the app publishes its dispatcher queue for that purpose.
+
+The self-contained unpackaged CLI path runs the same tests with Microsoft.Testing.Platform:
+
+```powershell
+dotnet restore FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true
+dotnet build FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true --no-restore
+dotnet run --project FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj --no-build -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -- --progress off
+```
+
+Optionally set a dedicated SQL Server test identity before running:
+
+```powershell
+$env:FOODHUB_TEST_CONNECTION_STRING = 'Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True'
+```
+
+Without this variable, only the three SQL cases are reported as skipped. A configured but unreachable server fails those tests. SQL tests create uniquely named FoodHub_Test databases and remove only those databases afterward; the identity needs CREATE DATABASE permission. Windows-storage tests use isolated temporary directories and never the customer's saved session. Categories `Unit`, `WindowsStorage`, and `SqlIntegration` allow filtering in Test Explorer. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
+
+The command-line host closes its test window and returns the runner's exit code. The packaged path retains the template's VSTest host; the unpackaged path uses MTP because [VSTest's WinUI provider requires a package manifest](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-winui#configure-an-unpackaged-app).
+
+Preserve comments/provenance, document authored APIs and update repository guidance with behavior changes. Graphify remains local-only, with ignored generated output and no cloud extraction.
+
+### Windows App SDK activation failures
+
+`REGDB_E_CLASSNOTREG` in `DeploymentInitializeOptions` or a Windows App Runtime module initializer happens before application/host/database startup. Normal builds now include the native Windows App SDK. If upgrading an older build, stop the debug session, clean/rebuild the application, and let Visual Studio redeploy the packaged profile. An explicit `-p:WindowsAppSDKSelfContained=false` opts back into framework-dependent deployment and requires the matching installed Windows App Runtime. Do not disable initialization to hide a missing runtime.

@@ -1,0 +1,11 @@
+<Page x:Class="FoodHub.Pages.BasketPage" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="24">
+            <TextBlock Text="Basket" Style="{StaticResource TitleTextBlockStyle}"/>
+            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Basket editing will be added in a later milestone."/>
+            <Button Content="Open checkout page" Click="Next_Click"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

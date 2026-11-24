@@ -1,63 +1,60 @@
-# Database setup and evolution
+# Development database
 
-The current baseline is SQL Server with EF Core Power Tools scaffolding. SQL-first remains the provisional workflow. Do not mix schema changes from EF migrations with direct SQL changes without deliberately selecting a new source of truth.
+## Current schema and commands
 
-## Safe initial setup
+FoodHub_Dev is disposable fictional development data. EF Core migrations own schema evolution. The maintained model and snapshot have one starting migration, `InitialCreate`, which creates tables, keys, indexes, named defaults, checks, computed values, account/session mappings, required order statuses, and the single store-settings row. `Migrations/Sql/OrderProcedures.sql` supplies the BasketItemList TVP and the two order procedures in separate GO-delimited batches.
 
-1. Start a SQL Server instance and create an empty development database, conventionally `FoodHub_Dev`.
-2. Select that database in SSMS, then run [the schema script](Foodhub_SQL_Server_Schema.sql). The script creates tables, a table type, procedures, settings, and optional demo data. It neither creates nor drops a database.
-3. Inspect the resulting objects and fictional seed data. Do not rerun the creation script on a populated database; it is not idempotent.
-
-Equivalent PowerShell command, after separately creating the empty database:
+The tool has two commands:
 
 ```powershell
-sqlcmd -S localhost -d FoodHub_Dev -E -b -i .\docs\Foodhub_SQL_Server_Schema.sql
+# Apply pending migrations; repeat execution preserves current rows.
+dotnet run --project FoodHub.Database -- migrate
+
+# Delete all local development rows and recreate the current schema. No backup or extra prompt.
+dotnet run --project FoodHub.Database -- reset
 ```
 
-`-E` uses Windows authentication and `-b` reports SQL errors as command failure. Use the appropriate instance name and your local SQL tooling's trusted certificate configuration. Do not weaken certificate checks for a remote database merely to copy the local development setup.
+The destructive command accepts only `Server=localhost;Database=FoodHub_Dev`; remote servers, other catalogs, attached files, and user-instance connections are rejected before opening SQL. Set FOODHUB_CONNECTION_STRING if the default Development connection is insufficient, and check any higher-priority per-user override. The reset creates no account or optional demonstration data. Optional fictional menu/customer/order data remains in Foodhub_Demo_Seed.sql for explicit use.
 
-The script defaults to loading demo data. Change its final batch's `@LoadDemoData` to 0 before execution if a clean dataset is needed. Current samples use LKR, a 250.00 delivery fee, two fictional customers, five menu items, and orders covering active, delivered, and cancelled states. Menu photos must be supplied by the app or replaced with a placeholder.
+The old Baseline/Accounts chain, reference-database comparisons, backup/adoption commands, and manual migration-history insertion were removed. EF still maintains __EFMigrationsHistory automatically. After replacing the initial chain, reset the existing development database once. Do not manually remove history rows while retaining old tables. Future small changes can use ordinary migrations; destructive development rebuilds remain an explicit choice.
 
-## Data map
+The app and Test Connection never migrate or reset a database. Production upgrade/backups are outside this project's current scope. The historical SQL creation document is not a second current schema authority. Existing archived backups/reference databases are not automatically deleted by this change.
 
-| Objects | Responsibility |
-|---|---|
-| Customers, CustomerAddresses | Local profiles and their saved delivery addresses |
-| MenuCategories, MenuItems | Categorized menu, current prices, availability, and local photo paths |
-| StoreSettings | One store's currency and delivery fee |
-| Orders, OrderItems | Saved receipt, contact/address snapshots, quantities, and price snapshots |
-| OrderStatuses, OrderStatusHistory | Current order state and timestamped progression |
-| BasketItemList | Table-valued parameter with one positive quantity per menu item |
+## Configuration ownership and precedence
 
-Order number, line totals, and order total are computed database values. Scaffolded nullable properties for computed values do not mean the UI should invent replacements; reload the saved result. Keep historical receipts based on snapshot fields rather than the customer's current profile or the current menu.
+Both appsettings.json and appsettings.Development.json live in FoodHub.Core. Their Content metadata is declared once in Core and copied transitively to executable outputs through project references. Production has an empty connection; Debug defaults to Development with localhost/FoodHub_Dev, Windows authentication and local certificate trust. Development content is excluded from Release output and from published output. No SQL password is tracked.
+
+The host is built in App.App() using AppContext.BaseDirectory, independent of the working directory. DOTNET_ENVIRONMENT can override the Debug=Development / Release=Production default. Providers, lowest to highest priority:
+
+1. Bundled appsettings.json.
+2. Bundled appsettings.{Environment}.json.
+3. Standard environment variables such as ConnectionStrings__FoodHub.
+4. FOODHUB_CONNECTION_STRING compatibility alias.
+5. appsettings.json in the active writable storage root.
+
+The UI uses package LocalFolder when packaged and %LOCALAPPDATA%/FoodHub otherwise. Console/EF tools are unpackaged and use the latter root, so packaged GUI overrides are deliberately separate from command-line tool overrides. Windows.Storage APIs stay in the UI project; Core shares the JSON/environment loader and filesystem persistence code.
+
+## Settings and persistence
+
+Settings → Database accepts Windows-authentication server/database fields and certificate trust. Test Connection checks a candidate with bounded SQL timeouts and cancellation, including required migration history, without saving or changing SQL. Save writes valid settings atomically even if the server is offline; Use default configuration removes only the user connection override. Both require restart and request remembered-token removal before restoration on the next launch. Existing operations use an immutable launch snapshot.
+
+Configuration is distinct from authentication: appsettings.json stores configuration, theme.txt stores appearance, and session.dat contains only Windows-user-encrypted token bytes. No FoodHub account switch changes the storage root. Packaged upgrades import legacy database/appearance files once without overwriting newer destination files; encrypted legacy tokens remain untouched and are not imported. A completion marker prevents deleted settings from being re-imported later.
+
+In Development, Settings shows the actual local storage path and an Open local storage folder button. It opens the active service root in File Explorer in either deployment mode; it never changes settings. The whole section and its command are disabled outside IHostEnvironment.IsDevelopment(), independently of Debug/Release and package identity.
+
+Malformed user JSON blocks database fallback and can be explicitly repaired through Save/Reset. Missing/invalid configuration, missing account schema, and unreachable SQL have safe, separate feedback. Diagnostics contain categories/codes, not connection payloads.
+
+## Adding a migration
+
+```powershell
+./.tools/dotnet-ef migrations add DescriptiveChange --project FoodHub.Core
+./.tools/dotnet-ef migrations script --project FoodHub.Core
+```
+
+Review generated changes and keep custom procedure SQL consistent. Do not use EnsureCreated with migrations. Scaffold provenance headers remain, but entities/context are maintained by hand rather than regenerated by EF Power Tools.
 
 ## Order write contracts
 
-`dbo.PlaceOrder` accepts customer ID, address ID, and `BasketItemList`; it returns the new order ID through an output parameter. It validates a nonempty basket, address ownership, settings, and item availability, then saves the order, items, and initial history event in a transaction. It calculates prices from the menu in SQL Server.
+PlaceOrder(CustomerId, CustomerAddressId, BasketItemList, OrderId OUTPUT) validates ownership/availability and saves authoritative prices, receipt snapshots, order/items and the first event atomically. Read OutputParameter after awaiting the wrapper, then reload the receipt. Wrapper task results are not the new order ID.
 
-The generated `PlaceOrderAsync` wrapper's task result is not the new order ID. Read the supplied `OutputParameter<int?>` after awaiting the call, then load the saved order and computed receipt fields.
-
-`dbo.UpdateOrderStatus` accepts customer ID, order ID, and new status ID. It locks the matching order and updates both state and history transactionally. Allowed transitions are:
-
-| From | Allowed next state |
-|---|---|
-| 10 — Order placed | 20 — Preparing, or 90 — Cancelled |
-| 20 — Preparing | 30 — Out for delivery |
-| 30 — Out for delivery | 40 — Delivered |
-| 40 — Delivered / 90 — Cancelled | None |
-
-Use these procedures for order writes. Normal EF operations can handle profile and address edits. Validate input in the application for helpful feedback as well as retaining database checks. Map expected SQL errors 51001–51006 to clear messages; keep unexpected failures diagnosable. A lost response after commit is an uncertain outcome: inspect saved state before retrying placement.
-
-Existing foreign keys preserve references used by orders; deleting referenced customers, addresses, or menu items is not a supported customer workflow. Do not add cascading deletes to make a form operation succeed.
-
-## Schema and scaffolding changes
-
-For a future schema change, inspect existing development data first, prepare a nondestructive SQL change when preservation is needed, and update the clean-create script to match. Explicitly label reset/reseed procedures; do not silently recreate a working database.
-
-Apply and verify the change in the intended development database. Use EF Core Power Tools with the existing `FoodHub.Core/efpt.config.json` to regenerate affected tables and procedures. Review the generated diff, especially computed columns, composite address ownership keys, nullability, table-valued parameters, and output parameters. Update services, documentation, and integration checks together.
-
-Generated files are regeneration-owned. Preserve headers and keep authored behavior or explanations in separate services/partial files. The current scaffolding settings include connection-string generation; changing that setting and the context configuration belongs to the configuration milestone.
-
-## Verification boundary
-
-This guide describes the checked-in script and generated code. It does not certify the live database schema, connectivity, or procedure execution. Integration tests must use SQL Server in a separate disposable test database, since computed columns, table-valued parameters, procedures, and locking behavior cannot be established with EF's in-memory provider.
+UpdateOrderStatus(CustomerId, OrderId, NewStatusId) validates ownership and locks state/history transactionally. Transitions remain 10 → 20 or 90, 20 → 30, 30 → 40; 40/90 are terminal. Expected SQL errors 51001–51006 remain domain outcomes. Do not add cascading deletes or duplicate these transactions in UI code.

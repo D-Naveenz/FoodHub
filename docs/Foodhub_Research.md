@@ -13,7 +13,7 @@ Research date: 2026-11-24. These are observations of official public material, n
 
 ## Deliberate simplifications
 
-The project uses local customer profiles instead of accounts, one outlet instead of a restaurant marketplace, cash on delivery instead of payment processing, and locally stored food photos instead of a media service. The four normal delivery stages and early cancellation rule are project decisions already represented in the SQL script; they are not asserted to be Foodhub's exact workflow.
+The project uses local email/password accounts with guest browsing instead of an external identity service, one outlet instead of a restaurant marketplace, cash on delivery instead of payment processing, and locally stored food photos instead of a media service. The four normal delivery stages and early cancellation rule are project decisions already represented in the SQL script; they are not asserted to be Foodhub's exact workflow.
 
 LKR, Sri Lankan sample dishes, and the 250.00 delivery fee are fictional demonstration settings from the existing seed script. They are not Foodhub pricing or regional service claims.
 

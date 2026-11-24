@@ -2,7 +2,7 @@
 
 ## Purpose and reading order
 
-This is an educational, Foodhub-inspired customer application built with WinUI 3 and SQL Server. Assume readers know only programming basics. The agreed scope is one takeaway, local profiles, menu browsing, checkout, simulated delivery tracking, and order history.
+This is an educational, Foodhub-inspired customer application built with WinUI 3 and SQL Server. Assume readers know only programming basics. The agreed scope is one takeaway, local email/password accounts with guest browsing, menu browsing, checkout, simulated delivery tracking, and order history.
 
 Before changing a feature, read:
 
@@ -37,14 +37,14 @@ See [local Graphify setup](docs/Graphify.md) for installation, MCP configuration
 
 ## Implementation defaults
 
-The following are recommendations pending further user guidance, not claims about existing implementation:
+The following guidance includes the approved account/migration decisions. Remaining ordering defaults are provisional and do not claim that those workflows are implemented:
 
 - Use simple MVVM, thin page code-behind for view behavior, and application services for workflows. Keep WinUI types in `FoodHub`; keep database access and non-UI logic in `FoodHub.Core` for now.
 - Use asynchronous database operations, cancellation where appropriate, and a short-lived context per operation. Do not block the UI thread or share one context across concurrent operations.
-- Retain SQL-first development and EF Core Power Tools provisionally. Use `PlaceOrder` and `UpdateOrderStatus` for order writes; use normal EF operations for profile/address edits. Do not duplicate order transactions in the UI.
-- Treat generated files in `FoodHub.Core/Models` as regeneration-owned. Prefer separate authored services and partial extensions; do not add teaching comments directly to generated output only to lose them at regeneration.
-- Do not introduce migrations alongside SQL-first changes without explicitly choosing a new schema authority. Keep SQL, scaffolding, and explanations consistent when the schema changes.
-- Use local fictional data. Profile selection is not authentication; status controls simulate delivery and do not represent GPS.
+- EF Core migrations now own schema evolution; do not regenerate the maintained context/entities with EF Core Power Tools. Use the current InitialCreate migration and preserve procedure contracts. FoodHub_Dev is disposable; explicit local reset does not require backups. Use `PlaceOrder` and `UpdateOrderStatus` for order writes; use normal EF operations for profile/address edits. Do not duplicate order transactions in the UI.
+- Historical scaffold headers in `FoodHub.Core/Models` record provenance. Entities/context are now maintained code; preserve their headers and add authored behavior through services and partial mappings. The old scaffold configuration is archived under docs/legacy.
+- Keep migrations, model snapshots, procedure SQL and explanations consistent. The historical SQL creation script is not a second current schema authority. Use FoodHub.Database reset explicitly for localhost/FoodHub_Dev when a rebuild is needed; it drops all development rows without backups. Never reset on app startup, connection tests, or a failed migration. Production backup/upgrade workflows are out of scope.
+- Use local fictional data. Accounts use local opaque sessions; direct database access remains an educational security boundary; status controls simulate delivery and do not represent GPS.
 
 ## Completion and maintenance
 
