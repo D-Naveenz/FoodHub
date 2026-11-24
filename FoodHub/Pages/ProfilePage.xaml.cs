@@ -10,8 +10,9 @@ namespace FoodHub.Pages;
 /// <summary>Shows the combined account/customer profile or guest entry actions.</summary>
 public sealed partial class ProfilePage : Page
 {
+    private readonly SessionState _session = App.GetService<SessionState>();
     /// <summary>Page-scoped editable state and commands.</summary>
-    public ProfileViewModel ViewModel { get; } = new(App.Services);
+    public ProfileViewModel ViewModel { get; } = App.GetService<ViewModelFactory>().CreateProfile();
     /// <summary>Creates the page and subscribes only while it is visible.</summary>
     public ProfilePage()
     {
@@ -19,7 +20,7 @@ public sealed partial class ProfilePage : Page
         Loaded += PageLoaded;
         Unloaded += (_, _) =>
         {
-            App.Services.Session.PropertyChanged -= SessionChanged;
+            _session.PropertyChanged -= SessionChanged;
             ViewModel.PropertyChanged -= FormChanged;
             ViewModel.Dispose();
         };
@@ -27,7 +28,7 @@ public sealed partial class ProfilePage : Page
 
     private async void PageLoaded(object sender, RoutedEventArgs e)
     {
-        App.Services.Session.PropertyChanged += SessionChanged;
+        _session.PropertyChanged += SessionChanged;
         ViewModel.PropertyChanged += FormChanged;
         await UpdateStateAsync();
         await ViewModel.RefreshCommand.ExecuteAsync(null);
@@ -47,7 +48,7 @@ public sealed partial class ProfilePage : Page
 
     private async Task UpdateStateAsync()
     {
-        var session = App.Services.Session; var profile = session.Profile;
+        var session = _session; var profile = session.Profile;
         AccountPanel.Visibility = session.IsAuthenticated ? Visibility.Visible : Visibility.Collapsed;
         GuestPanel.Visibility = session.IsAuthenticated ? Visibility.Collapsed : Visibility.Visible;
         SignOutButton.Visibility = session.CanSignOut ? Visibility.Visible : Visibility.Collapsed;

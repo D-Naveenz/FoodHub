@@ -26,9 +26,9 @@ An educational Foodhub-inspired WinUI 3 customer application backed by SQL Serve
 
 ## Build and launch
 
-Use Windows, a compatible .NET SDK, Windows SDK, and Visual Studio WinUI/MSIX tooling. UI targets net10.0-windows10.0.26100.0; Core targets net10.0. EF SQL Server/design tools are 10.0.15. MVVM uses CommunityToolkit.Mvvm 8.4.0; password hashing uses Microsoft.Extensions.Identity.Core 10.0.0. Windows packages retain the existing floating references; the inspected restore resolves Windows App SDK 2.7.0.
+Use Windows, a compatible .NET SDK, Windows SDK, and Visual Studio WinUI/MSIX tooling. UI targets net10.0-windows10.0.26100.0; Core targets net10.0. EF SQL Server/design tools are 10.0.15. MVVM uses CommunityToolkit.Mvvm 8.4.2; password hashing uses Microsoft.Extensions.Identity.Core 10.0.0. Windows packages retain the existing floating references; the inspected restore resolves Windows App SDK 2.7.0.
 
-Set `FOODHUB_CONNECTION_STRING` before launching Visual Studio or the application, and follow the database guide to provision/migrate the database. Missing/unreachable configuration produces account feedback; guest navigation still works.
+Debug builds load the local Windows-authentication connection from `appsettings.Development.json`; no shell environment variable is required. Release defaults to Production with an empty connection. Use **Settings → Database** to test and save a Windows-authentication connection, then restart. Follow the [database guide](docs/Database.md) to provision/migrate an existing target safely. Guest navigation and Settings remain available when configuration or SQL is unavailable.
 
 ```powershell
 $env:FOODHUB_CONNECTION_STRING = 'Server=localhost;Database=FoodHub_Dev;Integrated Security=True;TrustServerCertificate=True'
@@ -47,7 +47,7 @@ The explicit Platform determines runtime architecture even with an ARM64 SDK. Ap
 
 ## Verification
 
-`FoodHub.WinUI.Test` is the WinUI MSTest application and is included in the solution. It contains 15 unit/model tests, seven Windows-storage tests, and three SQL integration scenarios. The template's sample assertions and the old console runners were removed after their meaningful coverage was migrated.
+`FoodHub.WinUI.Test` is the WinUI MSTest application and is included in the solution. It contains 32 unit/model/configuration cases, seven Windows-storage cases, and four SQL integration scenarios. The template's sample assertions and the old console runners were removed after their meaningful coverage was migrated.
 
 For the template's packaged path, build x64 and run tests from Visual Studio Test Explorer. Set `FOODHUB_TEST_CONNECTION_STRING` before launching Visual Studio if SQL integration should run. Tests that create/access XAML objects should use `[UITestMethod]`; the app publishes its dispatcher queue for that purpose.
 
@@ -65,7 +65,7 @@ Optionally set a dedicated SQL Server test identity before running:
 $env:FOODHUB_TEST_CONNECTION_STRING = 'Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True'
 ```
 
-Without this variable, only the three SQL cases are reported as skipped. A configured but unreachable server fails those tests. SQL tests create uniquely named FoodHub_Test databases and remove only those databases afterward; the identity needs CREATE DATABASE permission. Windows-storage tests use isolated temporary directories and never the customer's saved session. Categories `Unit`, `WindowsStorage`, and `SqlIntegration` allow filtering in Test Explorer. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
+Without this variable, only the four SQL cases are reported as skipped. A configured but unreachable server fails those tests. SQL tests create uniquely named FoodHub_Test databases and remove only those databases afterward; the identity needs CREATE DATABASE permission. Windows-storage tests use isolated temporary directories and never the customer's saved session. Categories `Unit`, `WindowsStorage`, and `SqlIntegration` allow filtering in Test Explorer. Do not substitute EF InMemory for SQL Server procedure/constraint verification.
 
 The command-line host closes its test window and returns the runner's exit code. The packaged path retains the template's VSTest host; the unpackaged path uses MTP because [VSTest's WinUI provider requires a package manifest](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-winui#configure-an-unpackaged-app).
 

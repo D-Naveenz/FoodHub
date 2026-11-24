@@ -27,6 +27,23 @@ public sealed class SqlIntegrationTests
         _connection = connection;
     }
 
+    /// <summary>Connection checks distinguish missing migrations from a ready schema without creating objects.</summary>
+    [TestMethod]
+    public async Task ConnectionCheckIsReadOnlyAndReportsMigrations()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(_connection);
+        var tester = new DatabaseConnectionTester(Microsoft.Extensions.Logging.Abstractions.NullLogger<DatabaseConnectionTester>.Instance);
+        StringAssert.Contains(await tester.TestAsync(database.ConnectionString), "migrations are missing");
+        await using var db = database.Open();
+        Assert.IsTrue(await db.Database.CanConnectAsync());
+        Assert.AreEqual(0, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        var accounts = new AccountService(database.Open);
+        Assert.AreEqual(AccountError.Configuration, (await accounts.LoginAsync("fictional@example.test", "password", false)).Error);
+        await db.Database.MigrateAsync();
+        StringAssert.Contains(await tester.TestAsync(database.ConnectionString), "migrations are present");
+        Assert.AreEqual(0, await db.Users.CountAsync());
+    }
+
     /// <summary>A new install supports registration, sessions, ownership, receipts and status rules together.</summary>
     [TestMethod]
     public async Task FreshDatabaseSupportsAccountsAndOrderRules()

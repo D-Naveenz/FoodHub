@@ -1,3 +1,4 @@
+using FoodHub.Services;
 using FoodHub.ViewModels;
 using FoodHub.Pages.Account;
 using Microsoft.UI.Windowing;
@@ -20,9 +21,9 @@ public sealed partial class AuthenticationWindow : Window
     /// <summary>Creates the branded login/registration window centered over its owner.</summary>
     public AuthenticationWindow(MainWindow owner, bool registration)
     {
-        ViewModel = new(App.Services, registration);
+        ViewModel = App.GetService<ViewModelFactory>().CreateAuthentication(registration);
         InitializeComponent();
-        App.Services.Appearance.Apply(this);
+        App.GetService<AppearanceSettings>().Apply(this);
         ViewModel.Authenticated += (_, _) => { Succeeded = true; Close(); };
         ViewModel.PropertyChanged += FormChanged;
         Closed += (_, _) => { ViewModel.PropertyChanged -= FormChanged; ViewModel.Dispose(); };

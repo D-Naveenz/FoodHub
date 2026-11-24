@@ -32,6 +32,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FoodHub.Core\FoodHub.Core.csproj" />
+    <Compile Include="..\FoodHub\ViewModels\DatabaseSettingsViewModel.cs" Link="ViewModels\DatabaseSettingsViewModel.cs" />
+    <Compile Include="..\FoodHub\Services\AppRuntimeEnvironment.cs" Link="Services\AppRuntimeEnvironment.cs" />
     <!-- Test the same protected-storage implementation without starting the customer app. -->
     <Compile Include="..\FoodHub\Services\SessionStorage.cs" Link="Services\SessionStorage.cs" />
   </ItemGroup>
@@ -78,6 +80,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="*" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="*" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="*" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="MSTest.TestAdapter" Version="*" />
     <PackageReference Include="MSTest.TestFramework" Version="*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="*" />

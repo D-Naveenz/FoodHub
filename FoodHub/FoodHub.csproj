@@ -31,6 +31,8 @@
     <Content Include="Assets\UI\*.png" />
     <Content Include="Assets\FoodHubLogos\*.png" />
     <Content Include="Assets\Promotions\*.png" />
+    <!-- Unpackaged publish needs loose assets as well as the packaged resource index. -->
+    <Content Update="Assets\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
 
@@ -78,7 +80,7 @@
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!-- EF Core uses runtime model reflection; keep metadata and DI constructors in published builds. -->
+    <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
 </Project>

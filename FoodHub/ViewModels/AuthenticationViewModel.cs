@@ -8,8 +8,11 @@ namespace FoodHub.ViewModels;
 /// <summary>Owns form state and async submission; window code handles only window behavior.</summary>
 public partial class AuthenticationViewModel : ObservableObject, IDisposable
 {
-    private readonly ApplicationServices _services;
+    private readonly AccountService _accounts;
+    private readonly SessionState _session;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly CancellationToken _cancellation;
+    private bool _disposed;
     /// <summary>Observable email form state.</summary>
     private string _email = "";
     /// <summary>Observable Email form value.</summary>
@@ -54,9 +57,9 @@ public partial class AuthenticationViewModel : ObservableObject, IDisposable
     public Action ClearPasswords { private get; set; } = () => { };
 
     /// <summary>Creates the form for either entry route.</summary>
-    public AuthenticationViewModel(ApplicationServices services, bool registration)
+    public AuthenticationViewModel(AccountService accounts, SessionState session, bool registration)
     {
-        _services = services; IsRegistration = registration;
+        _accounts = accounts; _session = session; _cancellation = _lifetime.Token; IsRegistration = registration;
         SubmitCommand = new(SubmitAsync, () => !IsBusy);
         SwitchCommand = new(() =>
         {
@@ -71,17 +74,17 @@ public partial class AuthenticationViewModel : ObservableObject, IDisposable
     private async Task SubmitAsync()
     {
         IsBusy = true; SubmitCommand.NotifyCanExecuteChanged(); SwitchCommand.NotifyCanExecuteChanged(); Message = "";
-        var generation = _services.Session.Generation;
+        var generation = _session.Generation;
         try
         {
             var (password, confirmation) = ReadPasswords();
             var result = IsRegistration
-                ? await _services.Accounts.RegisterAsync(new(DisplayName, FullName, Email, Phone, password, confirmation, Remember), _lifetime.Token)
-                : await _services.Accounts.LoginAsync(Email, password, Remember, _lifetime.Token);
-            if (_lifetime.IsCancellationRequested || generation != _services.Session.Generation) return;
+                ? await _accounts.RegisterAsync(new(DisplayName, FullName, Email, Phone, password, confirmation, Remember), _cancellation)
+                : await _accounts.LoginAsync(Email, password, Remember, _cancellation);
+            if (_cancellation.IsCancellationRequested || generation != _session.Generation) return;
             if (!result.Succeeded) { Message = result.Message; return; }
-            await _services.Session.AcceptAsync(result.Value!, Remember);
-            if (!_lifetime.IsCancellationRequested) Authenticated?.Invoke(this, EventArgs.Empty);
+            await _session.AcceptAsync(result.Value!, Remember);
+            if (!_cancellation.IsCancellationRequested) Authenticated?.Invoke(this, EventArgs.Empty);
         }
         catch (OperationCanceledException) { }
         finally
@@ -93,7 +96,10 @@ public partial class AuthenticationViewModel : ObservableObject, IDisposable
     /// <summary>Cancels requests and suppresses late results after the window closes.</summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _lifetime.Cancel();
+        _lifetime.Dispose();
         ClearPasswords();
         ReadPasswords = static () => ("", "");
         ClearPasswords = static () => { };

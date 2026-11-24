@@ -10,8 +10,11 @@ namespace FoodHub.ViewModels;
 /// <summary>Editable customer state and commands, scoped to one profile-page lifetime.</summary>
 public partial class ProfileViewModel : ObservableObject, IDisposable
 {
-    private readonly ApplicationServices _services;
+    private readonly AccountService _accounts;
+    private readonly SessionState _session;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly CancellationToken _cancellation;
+    private bool _disposed;
     /// <summary>Observable display name form state.</summary>
     private string _displayName = "";
     /// <summary>Observable DisplayName form value.</summary>
@@ -80,32 +83,32 @@ public partial class ProfileViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand RefreshCommand { get; }
 
     /// <summary>Creates commands against the shared session instead of accepting customer IDs.</summary>
-    public ProfileViewModel(ApplicationServices services)
+    public ProfileViewModel(AccountService accounts, SessionState session)
     {
-        _services = services;
-        SaveBasicsCommand = new(() => Run(() => services.Session.ExecuteAsync((t, ct) => services.Accounts.UpdateBasicsAsync(t,
-            new(DisplayName, FullName, Phone), ct), _lifetime.Token)), CanEdit);
-        SaveAddressCommand = new(() => Run(() => services.Session.ExecuteAsync((t, ct) => services.Accounts.SaveAddressAsync(t,
-            new(SelectedAddress?.Id, Label, Line1, Line2, City, PostalCode), ct), _lifetime.Token)), CanEdit);
-        DeleteAddressCommand = new(() => Run(() => services.Session.ExecuteAsync((t, ct) => services.Accounts.DeleteAddressAsync(t,
-            SelectedAddress!.Id, ct), _lifetime.Token)), () => CanEdit() && SelectedAddress is not null);
+        _accounts = accounts; _session = session; _cancellation = _lifetime.Token;
+        SaveBasicsCommand = new(() => Run(() => session.ExecuteAsync((t, ct) => accounts.UpdateBasicsAsync(t,
+            new(DisplayName, FullName, Phone), ct), _cancellation)), CanEdit);
+        SaveAddressCommand = new(() => Run(() => session.ExecuteAsync((t, ct) => accounts.SaveAddressAsync(t,
+            new(SelectedAddress?.Id, Label, Line1, Line2, City, PostalCode), ct), _cancellation)), CanEdit);
+        DeleteAddressCommand = new(() => Run(() => session.ExecuteAsync((t, ct) => accounts.DeleteAddressAsync(t,
+            SelectedAddress!.Id, ct), _cancellation)), () => CanEdit() && SelectedAddress is not null);
         NewAddressCommand = new(() => { SelectedAddress = null; ClearAddress(); }, CanEdit);
-        SignOutCommand = new(() => Run(services.Session.SignOutAsync), () => !IsBusy);
+        SignOutCommand = new(() => Run(session.SignOutAsync), () => !IsBusy);
         PhotoCommand = new(() => Run(ChoosePhotoAsync), CanEdit);
-        RemovePhotoCommand = new(() => Run(() => services.Session.ExecuteAsync((t, ct) => services.Accounts.UpdatePhotoAsync(t, null, ct), _lifetime.Token)), CanEdit);
-        RefreshCommand = new(() => Run(() => services.Session.RefreshAsync(_lifetime.Token)), () => !IsBusy);
-        services.Session.PropertyChanged += SessionChanged;
+        RemovePhotoCommand = new(() => Run(() => session.ExecuteAsync((t, ct) => accounts.UpdatePhotoAsync(t, null, ct), _cancellation)), CanEdit);
+        RefreshCommand = new(() => Run(() => session.RefreshAsync(_cancellation)), () => !IsBusy);
+        session.PropertyChanged += SessionChanged;
         LoadProfile();
     }
 
-    private bool CanEdit() => !IsBusy && _services.Session.IsAuthenticated;
+    private bool CanEdit() => !IsBusy && _session.IsAuthenticated;
     /// <summary>Normalizes a selected image and discards it if the page or account changed.</summary>
     private async Task ChoosePhotoAsync()
     {
-        var generation = _services.Session.Generation;
+        var generation = _session.Generation;
         var png = await ProfileImages.PickAsync(App.MainWindow);
-        if (png is null || _lifetime.IsCancellationRequested || generation != _services.Session.Generation) return;
-        await _services.Session.ExecuteAsync((t, ct) => _services.Accounts.UpdatePhotoAsync(t, png, ct), _lifetime.Token);
+        if (png is null || _cancellation.IsCancellationRequested || generation != _session.Generation) return;
+        await _session.ExecuteAsync((t, ct) => _accounts.UpdatePhotoAsync(t, png, ct), _cancellation);
     }
 
     /// <summary>Keeps commands disabled during asynchronous work and translates image errors for the form.</summary>
@@ -116,7 +119,7 @@ public partial class ProfileViewModel : ObservableObject, IDisposable
         try { await action(); }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is ArgumentException or System.IO.IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
-        { if (!_lifetime.IsCancellationRequested) Message = ex is ArgumentException ? ex.Message : "The image could not be opened. Choose a valid PNG or JPEG."; }
+        { if (!_cancellation.IsCancellationRequested) Message = ex is ArgumentException ? ex.Message : "The image could not be opened. Choose a valid PNG or JPEG."; }
         finally { IsBusy = false; NotifyCommands(); }
     }
 
@@ -128,7 +131,7 @@ public partial class ProfileViewModel : ObservableObject, IDisposable
     /// <summary>Replaces editable state with the validated profile, clearing private fields after session loss.</summary>
     private void LoadProfile()
     {
-        var profile = _services.Session.Profile;
+        var profile = _session.Profile;
         DisplayName = profile?.DisplayName ?? ""; FullName = profile?.FullName ?? "";
         Email = profile?.Email ?? ""; Phone = profile?.Phone ?? "";
         Addresses.Clear(); SelectedAddress = null; ClearAddress();
@@ -153,8 +156,11 @@ public partial class ProfileViewModel : ObservableObject, IDisposable
     /// <summary>Detaches session notifications and cancels in-flight page work.</summary>
     public void Dispose()
     {
-        _services.Session.PropertyChanged -= SessionChanged;
+        _session.PropertyChanged -= SessionChanged;
+        if (_disposed) return;
+        _disposed = true;
         _lifetime.Cancel();
-        // Commands may still be unwinding after cancellation; keep the source valid for that continuation.
+        _lifetime.Dispose();
+        // Continuations use the captured token rather than the disposed source.
     }
 }

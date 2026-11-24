@@ -13,7 +13,7 @@ WinUI page/window -> observable view model -> AccountService -> short-lived EF c
                 <- shared SessionState <- safe result/profile projection <- persisted state
 ```
 
-`ApplicationServices` explicitly composes services on the UI thread. `CommunityToolkit.Mvvm` provides `ObservableObject`, `RelayCommand` and `AsyncRelayCommand`; observable properties use explicit readable setters. No service locator package, generic repository, or third data project is required.
+`ApplicationHost` builds one .NET Generic Host using Microsoft.Extensions.Hosting 10.0.0. The host owns configuration, constructor injection, logging, and shutdown. Workflow/session/storage/settings/runtime services are singletons; each database operation still creates and disposes a context. UI services are resolved on the dispatcher. `ViewModelFactory` uses ActivatorUtilities to create page/window-owned view models outside the root container, so disposing a page releases its subscriptions and cancellation sources. Parameterless Frame pages resolve only their construction dependencies through `App.GetService<T>()`; view models receive their actual dependencies in constructors. The manual ApplicationServices facade was replaced by this composition root. `CommunityToolkit.Mvvm` provides `ObservableObject`, `RelayCommand` and `AsyncRelayCommand`; observable properties use explicit readable setters. No service locator package, generic repository, or third data project is required.
 
 `FoodHub.Core` owns entities, EF mappings/migrations, password hashing, opaque token issuance, validation and customer workflows. `FoodHub` owns native windows, navigation, photo decoding, Windows-protected storage and theme settings. Windows types do not enter Core.
 
@@ -35,10 +35,22 @@ All customer navigation uses the shell gate. Home, Menu and Basket allow guests.
 
 Names and phone are editable; email is read-only. Every address operation derives its owner from the validated session. Referenced addresses cannot be deleted; edits do not rewrite saved order snapshots. Photos are decoded only after file-size/dimension checks, normalized for orientation, scaled to at most 512 pixels and saved as PNG bytes. Missing/corrupt photos fall back to initials.
 
-Database operations are asynchronous and use a short-lived context. Do not block the UI with `.Result`/`.Wait()` or share a context concurrently. `FOODHUB_CONNECTION_STRING` supplies runtime and design-time configuration; externally supplied DbContextOptions take precedence. No migrations run during app startup.
+Database operations are asynchronous and use a short-lived context. Do not block the UI with `.Result`/`.Wait()` or share a context concurrently. A shared, immutable JSON/environment configuration snapshot supplies runtime, administrative-tool, and EF design-time settings; externally supplied DbContextOptions take precedence. See [Database](Database.md) for provider precedence and restart behavior. No migrations run during app startup.
 
 ## Ordering work remains deferred
 
 Keep the basket in memory when that milestone is implemented. Scope order reads/writes to the authenticated customer. Use the retained `PlaceOrder` and `UpdateOrderStatus` contracts for order writes; SQL Server owns authoritative prices, receipt snapshots and status transitions. Store timestamps in UTC and display them in the user's local time. Delivery remains explicitly simulated.
 
 See [Database](Database.md) for migration ownership, [Accounts](Accounts.md) for operation/validation details, and [Verification](Verification.md) for actual checks and remaining manual scenarios.
+
+## Runtime identity and configuration lifetime
+
+`IAppRuntimeEnvironment.IsPackaged` and `IHostEnvironment.IsPackaged()` query actual Windows process package identity using GetCurrentPackageFullName. They are independent of Debug/Release and Development/Production; unexpected native errors are reported rather than converted into false. No storage branch was introduced: the existing user-protected token implementation has unpackaged test coverage. ApplicationPaths centralizes install and writable user-data paths without moving session.dat or theme.txt.
+
+The host content root is AppContext.BaseDirectory. Configuration loads once with no file watchers. Database Settings constructs Windows-authentication strings with SqlConnectionStringBuilder, tests a candidate asynchronously without modifying SQL, and saves via a temporary file followed by atomic replacement. A persistent reset marker removes remembered sign-in before restoration on the next launch. Failed removal leaves the marker intact and restoration suppressed. Appearance and current authenticated work remain unchanged until restart.
+
+Missing/malformed configuration and missing schema are Configuration outcomes; unreachable SQL is a Database outcome. Both hide private session state. ILogger receives only categories and numeric SQL codes, never raw exceptions or connection payloads. Invalid user JSON blocks database fallback but leaves Settings available to explicitly repair/reset it.
+
+Published builds disable trimming because EF Core runtime model reflection and constructor-based service creation require metadata. Release publishing exposed EF IL2026/IL2104 warnings with the previous template trimming setting; retaining metadata avoids shipping a build with those known runtime risks. Shutdown defers the final native close through DispatcherQueue after host stop/disposal, because reentrant WinUI Close calls are ignored.
+
+Reference: [Microsoft Generic Host](https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host) and [Windows process package identity](https://devblogs.microsoft.com/insidemsix/is-this-a-packaged-process/).

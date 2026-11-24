@@ -2,7 +2,7 @@
 
 ## Implemented account and shell slice
 
-The app now has the navigation shell and Home, separate modal login/registration, account/customer services, opaque sessions, editable profile/contact details, photo selection, saved addresses and appearance settings. EF migrations replace SQL-first schema ownership. Menu, Basket, Orders and subordinate customer pages are skeletons.
+The app now has the navigation shell and Home, separate modal login/registration, account/customer services, opaque sessions, editable profile/contact details, photo selection, saved addresses, appearance settings, Generic Host dependency injection and persistent database setup in Settings. EF migrations replace SQL-first schema ownership. Menu, Basket, Orders and subordinate customer pages are skeletons.
 
 Build, SQL integration and manual UI results are recorded separately in [Verification](Verification.md). A source file or graph node is never evidence that a GUI journey was exercised.
 

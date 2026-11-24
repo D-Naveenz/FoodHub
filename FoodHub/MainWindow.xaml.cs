@@ -1,3 +1,5 @@
+using FoodHub.Core.Services;
+using System.IO;
 using FoodHub.Pages;
 using FoodHub.Services;
 using Microsoft.UI.Windowing;
@@ -20,13 +22,14 @@ public sealed partial class MainWindow : Window
     private Type? _pendingDestination;
     private WeakReference<Control>? _returnFocus;
     /// <summary>Shared observable account state.</summary>
-    public SessionState Session => App.Services.Session;
+    public SessionState Session { get; }
     /// <summary>The one live account window, or null.</summary>
     public AuthenticationWindow? AuthenticationWindow { get; private set; }
 
     /// <summary>Initializes the title bar, guest dashboard, and account-state synchronization.</summary>
-    public MainWindow()
+    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationPaths paths)
     {
+        Session = session;
         InitializeComponent();
         // Observe the actual pane state, which changes before its animation completes.
         // This covers both the title-bar toggle and automatic layout changes on resize.
@@ -35,7 +38,7 @@ public sealed partial class MainWindow : Window
         UpdatePane();
         ExtendsContentIntoTitleBar = true; SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        AppWindow.SetIcon("Assets/AppIcon.ico");
+        AppWindow.SetIcon(Path.Combine(paths.InstallDirectory, "Assets", "AppIcon.ico"));
         Session.PropertyChanged += SessionChanged;
         Closed += (_, _) =>
         {
@@ -44,7 +47,7 @@ public sealed partial class MainWindow : Window
             AuthenticationWindow?.Close();
         };
         Navigate(typeof(HomePage));
-        App.Services.Appearance.Apply(this);
+        appearance.Apply(this);
         _ = UpdateAvatarAsync();
     }
 

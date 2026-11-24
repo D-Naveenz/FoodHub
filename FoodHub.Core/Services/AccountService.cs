@@ -2,12 +2,15 @@ using FoodHub.Core.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FoodHub.Core.Services;
 
 /// <summary>Coordinates local account workflows. Every private operation validates its session in SQL Server.</summary>
-public sealed class AccountService(Func<FoodHub_DevContext> contextFactory, TimeProvider? clock = null)
+public sealed class AccountService(Func<FoodHub_DevContext> contextFactory, TimeProvider? clock = null, ILogger<AccountService>? logger = null)
 {
+    private readonly ILogger<AccountService> _logger = logger ?? NullLogger<AccountService>.Instance;
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private readonly PasswordHasher<User> _hasher = new();
 
@@ -161,9 +164,16 @@ public sealed class AccountService(Func<FoodHub_DevContext> contextFactory, Time
     private static AccountResult<T> Failure<T>(AccountError error, string message) => new(default, error, message);
 
     /// <summary>Maps expected data failures to safe UI results while allowing cancellation to propagate.</summary>
-    private static async Task<AccountResult<T>> Run<T>(Func<Task<AccountResult<T>>> action)
+    private async Task<AccountResult<T>> Run<T>(Func<Task<AccountResult<T>>> action)
     {
         try { return await action(); }
+        catch (DatabaseConfigurationException ex)
+        { return Failure<T>(AccountError.Configuration, ex.Message); }
+        catch (SqlException ex) when (ex.Number is 208 or 207)
+        {
+            _logger.LogWarning("Account schema unavailable ({Code})", ex.Number);
+            return Failure<T>(AccountError.Configuration, "The account database schema is unavailable. Apply the required migrations before signing in.");
+        }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
         { return Failure<T>(AccountError.Conflict, "This record already exists. Check the email address and try again."); }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 547 })
@@ -171,9 +181,9 @@ public sealed class AccountService(Func<FoodHub_DevContext> contextFactory, Time
         catch (Exception ex) when (ex is SqlException or DbUpdateException or InvalidOperationException or TimeoutException)
         {
             // Log only an error category/code, never connection strings, parameters, tokens, or passwords.
-            System.Diagnostics.Trace.TraceError("Account data operation failed: {0} ({1})", ex.GetType().Name,
+            _logger.LogError("Account data operation failed: {Category} ({Code})", ex.GetType().Name,
                 ex is SqlException sql ? sql.Number : 0);
-            return Failure<T>(AccountError.Database, "Cannot reach the account database. Check configuration and try again.");
+            return Failure<T>(AccountError.Database, "Cannot connect to the account database. Check database Settings and SQL Server availability.");
         }
     }
 }

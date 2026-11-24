@@ -5,7 +5,7 @@ using System.Text;
 namespace FoodHub.Core.Services;
 
 /// <summary>Expected outcomes that screens can explain without exposing database internals.</summary>
-public enum AccountError { None, Validation, InvalidCredentials, Expired, Database, Conflict }
+public enum AccountError { None, Validation, InvalidCredentials, Expired, Database, Conflict, Configuration }
 
 /// <summary>A workflow result with a safe user-facing message.</summary>
 public sealed record AccountResult<T>(T? Value, AccountError Error = AccountError.None, string Message = "")

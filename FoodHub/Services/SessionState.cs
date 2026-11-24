@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml;
 namespace FoodHub.Services;
 
 /// <summary>Observable session shared by all windows; guards against late results from an obsolete account.</summary>
-public sealed class SessionState : ObservableObject
+public sealed class SessionState : ObservableObject, IDisposable
 {
     private readonly AccountService _accounts;
     private readonly SessionStorage _storage;
@@ -21,16 +21,19 @@ public sealed class SessionState : ObservableObject
     public SessionState(AccountService accounts, SessionStorage storage)
     {
         _accounts = accounts; _storage = storage;
-        _expiryTimer.Tick += async (_, _) =>
-        {
-            if (_token is not null && DateTime.UtcNow >= _expiry)
-            {
-                var generation = _generation + 1;
-                await ClearAsync();
-                if (_generation == generation) Message = "Your session has ended. Please sign in again.";
-            }
-        };
+        _expiryTimer.Tick += CheckExpiry;
         _expiryTimer.Start();
+    }
+
+    /// <summary>Clears an expired session on the UI dispatcher.</summary>
+    private async void CheckExpiry(object? sender, object e)
+    {
+        if (_token is not null && DateTime.UtcNow >= _expiry)
+        {
+            var generation = _generation + 1;
+            await ClearAsync();
+            if (_generation == generation) Message = "Your session has ended. Please sign in again.";
+        }
     }
 
     /// <summary>Fresh profile only; null after expiry or database failure.</summary>
@@ -49,7 +52,7 @@ public sealed class SessionState : ObservableObject
     public bool CanSignOut => _token is not null || _pendingSignOutToken is not null;
 
     /// <summary>Restores a remembered token only after validation against SQL Server.</summary>
-    public async Task RestoreAsync()
+    public async Task RestoreAsync(CancellationToken cancellation = default)
     {
         var generation = _generation;
         var token = await _storage.ReadAsync();
@@ -57,7 +60,7 @@ public sealed class SessionState : ObservableObject
         _token = token;
         // The database supplies the real expiry; allow retry if it is temporarily unavailable.
         _expiry = DateTime.MaxValue;
-        await RefreshAsync();
+        await RefreshAsync(cancellation);
     }
 
     /// <summary>Publishes a successful sign-in and persists only when requested.</summary>
@@ -93,7 +96,7 @@ public sealed class SessionState : ObservableObject
         }
         else
         {
-            if (result.Error == AccountError.Database) { _ticket = null; Notify(); }
+            if (result.Error is AccountError.Database or AccountError.Configuration) { _ticket = null; Notify(); }
             Message = result.Message;
         }
     }
@@ -125,6 +128,14 @@ public sealed class SessionState : ObservableObject
             if (_generation == generation) Message = "Local session data could not be removed. Check access to your FoodHub app-data folder.";
             return false;
         }
+    }
+
+    /// <summary>Stops dispatcher work and detaches the timer when the host closes.</summary>
+    public void Dispose()
+    {
+        _generation++;
+        _expiryTimer.Stop();
+        _expiryTimer.Tick -= CheckExpiry;
     }
 
     /// <summary>Updates every session-derived property so both windows show the same account.</summary>
