@@ -1,5 +1,4 @@
 using FoodHub.Services;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Text;
 
 namespace FoodHub.WinUI.Test;
@@ -7,6 +6,7 @@ namespace FoodHub.WinUI.Test;
 /// <summary>Exercises the actual Windows-protected storage implementation without touching the user's saved session.</summary>
 [TestClass]
 [TestCategory("WindowsStorage")]
+[OSCondition(OperatingSystems.Windows)]
 public sealed class SessionStorageTests
 {
     private string _directory = "";
@@ -79,7 +79,7 @@ public sealed class SessionStorageTests
     public async Task OversizedStorageIsRejected()
     {
         Directory.CreateDirectory(_directory);
-        await File.WriteAllBytesAsync(_path, new byte[20000]);
+        await File.WriteAllBytesAsync(_path, new byte[20000], TestContext.CancellationToken);
         Assert.IsNull(await _storage.ReadAsync());
         Assert.IsFalse(File.Exists(_path));
     }
@@ -93,4 +93,6 @@ public sealed class SessionStorageTests
         await Task.WhenAll(saving, removing);
         Assert.IsNull(await _storage.ReadAsync());
     }
+
+    public TestContext TestContext { get; set; }
 }

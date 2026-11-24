@@ -2,7 +2,6 @@ using FoodHub.Core.Models;
 using FoodHub.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FoodHub.WinUI.Test;
 
