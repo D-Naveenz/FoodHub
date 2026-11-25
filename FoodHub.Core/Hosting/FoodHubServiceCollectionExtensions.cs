@@ -1,3 +1,5 @@
+using Dhara.Extensions.WinUI.Storage;
+using Dhara.Extensions.WinUI.Hosting;
 using FoodHub.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +17,7 @@ public static class FoodHubServiceCollectionExtensions
     public static IServiceCollection AddFoodHubCore(this IServiceCollection services)
     {
         services.TryAddSingleton(sp => new DatabaseSettings(sp.GetRequiredService<IConfiguration>(),
-            sp.GetRequiredService<ApplicationConfigurationStatus>().Error));
+            sp.GetRequiredService<ApplicationConfigurationStatus>().Error, sp.GetRequiredService<ILocalSettingsStore>()));
         services.TryAddSingleton<DatabaseSettingsStore>();
         services.TryAddSingleton<DatabaseConnectionTester>();
         services.TryAddSingleton<Func<Models.FoodHub_DevContext>>(sp => sp.GetRequiredService<DatabaseSettings>().Open);

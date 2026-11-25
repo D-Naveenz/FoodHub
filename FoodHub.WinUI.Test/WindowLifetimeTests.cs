@@ -1,5 +1,6 @@
-using System.Runtime.InteropServices;
+using Dhara.Extensions.WinUI.Storage;
 using Dhara.Extensions.WinUI.Hosting;
+using System.Runtime.InteropServices;
 using Dhara.Extensions.WinUI.Threading;
 using Dhara.Extensions.WinUI.Windowing;
 using FoodHub.Core.Services;
@@ -52,7 +53,8 @@ public sealed class WindowLifetimeTests
     {
         var builder = WinUIApplication.CreateBuilder(Application.Current, new WinUIApplicationOptions
         {
-            ApplicationDataName = "Dhara.Tests", ContentRootPath = _root,
+            PublisherName = "Dhara.Tests", SettingsContainer = new SettingsTestContainer(),
+            ApplicationDataName = "LifecycleTests", ContentRootPath = _root,
             LocalStorageRoot = Path.Combine(_root, "user"), Dispatcher = WinUITestSupport.Dispatcher,
             // A failed startup must not terminate the Application owned by the test runner.
             ExitApplication = () => { }, ShutdownTimeout = timeout ?? TimeSpan.FromSeconds(5)
@@ -178,18 +180,17 @@ public sealed class WindowLifetimeTests
     {
         var registry = new WindowRegistry(WinUITestSupport.Dispatcher);
         var themes = new WindowThemeService(registry, WinUITestSupport.Dispatcher);
-        var storage = new LocalStorageService(_root); using var settings = new LocalSettingsStore(storage);
+        using var settings = new LocalSettingsStore(new SettingsTestContainer());
         var appearance = new AppearanceSettings(new ConfigurationBuilder().Build(), settings, themes);
         var main = new TestWindow(); var child = new TestWindow(); registry.Register(main); registry.Register(child);
         try
         {
-            await settings.UpdateAsync(json => json["ConnectionStrings"] = new System.Text.Json.Nodes.JsonObject { ["FoodHub"] = "keep" });
+            await settings.WriteAsync("Other", "keep");
             await appearance.SetThemeAsync(ElementTheme.Dark);
             Assert.AreEqual(ElementTheme.Dark, ((FrameworkElement)main.Content).RequestedTheme);
             Assert.AreEqual(ElementTheme.Dark, ((FrameworkElement)child.Content).RequestedTheme);
-            var json = System.Text.Json.Nodes.JsonNode.Parse((await storage.ReadAsync("appsettings.json"))!)!;
-            Assert.AreEqual("keep", json["ConnectionStrings"]!["FoodHub"]!.GetValue<string>());
-            Assert.AreEqual("Dark", json["Appearance"]!["Theme"]!.GetValue<string>());
+            Assert.AreEqual("keep", settings.Read("Other", ""));
+            Assert.AreEqual("Dark", settings.Read("Appearance.Theme", "System"));
         }
         finally { child.Close(); main.Close(); }
     });

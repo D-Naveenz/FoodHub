@@ -1,4 +1,23 @@
-# Verification record — 2026-11-24
+# Verification record
+
+## Read-only host configuration and native runtime settings — 2026-11-26
+
+This section supersedes the configuration/storage ownership and paths in earlier entries. Dhara now owns the shared ApplicationConfiguration/ApplicationEnvironment, LocalSettingsStore, LocalStorageService and native ApplicationDataContext. FoodHub owns bundled appsettings source files; the database executable links them. Host JSON is read-only and separate from runtime preferences; no legacy files or settings are imported. Core and administration tools now target Windows through Dhara.
+
+Checked:
+
+- Final unpackaged x64 test build: zero warnings/errors. **93 passed, zero failed, four skipped (97 total)**. Skips: actual package LocalPath check and three SQL integration cases without FOODHUB_TEST_CONNECTION_STRING. No database migration/reset or SQL integration run was performed for this change.
+- Tests cover host file precedence and immutability, build metadata/environment-variable isolation, local overrides outside IConfiguration, optional real file watching with immutable database snapshots, settings repair/access failures, token-reset retry sequencing, failed/cancelled writes, concurrent grouped updates and appearance state. Existing hosted-window/dispatcher/lifecycle tests continue to pass.
+- Six native LocalSettings tests use uniquely named child containers, deleting only those test containers afterward. Values survive reopening; typed values/arrays round-trip, unrelated values survive updates/removal, cancellation preserves previous groups, invalid formats require explicit repair and unsupported group objects cannot overwrite committed data. No FoodHub RuntimeSettings values were modified by tests.
+- Windows App SDK containers reject the older Windows.Storage.ApplicationDataCompositeValue. Related values therefore use a typed string envelope committed by a single native assignment; no JSON settings file is involved. Native quotas and per-process-only write coordination are documented in Dhara's guide.
+- Debug database executable build and EF `dbcontext info --project FoodHub.Core --startup-project FoodHub.Database --no-build --configuration Debug` passed. EF resolved SQL Server/localhost/FoodHub_Dev without opening SQL or constructing XAML. A temporary direct-executable settings-only probe also passed and was removed. The factory scopes native manifest activation/resource lookup and restores EF's current directory/runtime environment variables afterward.
+- App Debug (default packaged build path and unpackaged), Release and custom Staging x64 builds passed with zero warnings/errors. Output inspection found base plus Development JSON in Debug app/tool outputs and only base JSON in Release/Staging. This verifies compilation/output selection, not fresh MSIX deployment.
+- Dhara generates XML documentation; builds report no documentation warnings. Existing comments and provenance headers are preserved. The old database-owned configuration/path classes and file-backed settings writer were replaced by the reusable shared implementations; FoodHub retains feature-specific fallback, theme, database and protected-session policy.
+
+The local code-only Graphify graph was refreshed (1324 nodes/3032 edges) without cloud extraction; generated output remains ignored.
+
+Remaining manual verification: fresh MSIX deployment and actual packaged native settings persistence, the complete account/customer journey, and database Save/Reset with remembered sign-in across real application restarts. Unpackaged native storage and generic window lifecycle tests do not claim these full journeys. No NuGet publication was performed.
+
 
 ## Dhara WinUI infrastructure extraction — 2026-11-25
 
@@ -107,7 +126,7 @@ These have implementation and lower-layer coverage where applicable, but were no
 
 ## Local graph and maintenance
 
-Local code-only Graphify extraction was refreshed without cloud calls or semantic document/image extraction. After test migration, the refreshed graph has 787 nodes/1448 edges. The assembly-level test configuration yields no symbols, as expected; top-level database-tool code and the standalone demo seed also require direct inspection where graph coverage is incomplete. Graph output remains ignored. CodeGraph was unavailable and was not installed.
+Local code-only Graphify extraction was refreshed without cloud calls or semantic document/image extraction. After test migration, the refreshed graph has 787 nodes/1448 edges. The assembly-level test configuration yields no symbols, as expected; top-level database-tool code and the standalone demo seed also require direct inspection where graph coverage is incomplete. Graph output remains ignored.
 
 The existing user change in `.vscode/settings.json` was left untouched. Historical scaffold provenance and template teaching comments were preserved. The old embedded-connection `#warning` was removed because context configuration now comes from external options/environment; EF Power Tools configuration was archived as the user-selected migration workflow replaced regeneration.
 
@@ -125,7 +144,7 @@ Release publishing initially exposed EF trimming warnings, so PublishTrimmed is 
 
 Remaining manual acceptance: full GUI credential submission and remembered-account restart, Settings Save/Reset/restart with a disposable account, and accessibility/high-scale checks. Session encryption/restore/sign-out and durable database-change reset behavior have automated coverage; those checks are not a claim of a complete GUI login journey. The packaged-run tooling ignored the temporary-name override and unregistered the existing debug identity on exit. The local development registration was restored from the rebuilt AppX layout, then packaged Settings/SQL connectivity was verified directly without that runner. The restored registration remains available. No customer database data was changed.
 
-Local code-only Graphify extraction was refreshed to 927 nodes/1846 edges without cloud/semantic extraction. CodeGraph remains unavailable and was not installed. Generated graph and build/test/publish artifacts remain ignored by Git.
+Local code-only Graphify extraction was refreshed to 927 nodes/1846 edges without cloud/semantic extraction. Generated graph and build/test/publish artifacts remain ignored by Git.
 
 ## Default Windows App SDK deployment fix — 2026-11-24
 

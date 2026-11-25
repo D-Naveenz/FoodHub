@@ -1,5 +1,4 @@
 using Dhara.Extensions.WinUI.Hosting;
-using Dhara.Extensions.WinUI.Storage;
 using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.ViewModels;
@@ -16,14 +15,8 @@ public static class ApplicationHost
     /// <returns>The host whose startup and disposal are owned by Dhara's application lifetime controller.</returns>
     public static IHost Build(App application)
     {
-        var builder = WinUIApplication.CreateBuilder(application, new WinUIApplicationOptions { ApplicationDataName = "FoodHub" });
+        var builder = WinUIApplication.CreateBuilder(application, new WinUIApplicationOptions { PublisherName = "dashe", ApplicationDataName = "FoodHub" });
         builder.UseWinUIApplication<MainWindow>();
-        // Adapt reusable Windows paths/status to Core contracts without giving Core a Windows dependency.
-        builder.Services.AddSingleton(sp => new ApplicationPaths(
-            sp.GetRequiredService<ApplicationDataPaths>().ContentRoot, sp.GetRequiredService<ApplicationDataPaths>().RootDirectory));
-        builder.Services.AddSingleton<ILocalStorageService>(sp => new LocalStorageService(sp.GetRequiredService<ApplicationDataPaths>().RootDirectory));
-        builder.Services.AddSingleton(sp => new ApplicationConfigurationStatus(sp.GetRequiredService<WinUIConfigurationStatus>().Error));
-        builder.Services.AddSingleton<LocalSettingsStore>();
         builder.Services.AddFoodHubCore();
         builder.Services.AddSingleton<IWinUIStartupParticipant, FoodHubStartupParticipant>();
         builder.Services.AddSingleton<SessionStorage>();

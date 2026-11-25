@@ -93,7 +93,7 @@ public sealed class DatabaseSettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or ArgumentException)
         {
             _logger.LogWarning("Database settings operation failed: {Category}", ex.GetType().Name);
-            Message = "Could not save database settings. Check access to the FoodHub app-data folder.";
+            Message = "Could not save database settings. Check access to FoodHub local application settings.";
         }
         finally { IsBusy = false; OnPropertyChanged(nameof(RestartRequired)); }
     }

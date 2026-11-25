@@ -1,3 +1,5 @@
+using Dhara.Extensions.WinUI.Storage;
+using Dhara.Extensions.WinUI.Hosting;
 using Dhara.Extensions.WinUI.Windowing;
 using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
@@ -34,7 +36,7 @@ public sealed partial class MainWindow : Window
     /// <param name="appearance">FoodHub's persisted appearance adapter.</param>
     /// <param name="paths">The bundled content paths used for application-specific assets.</param>
     /// <param name="windows">The reusable registry used to track owned windows and suppress navigation during shutdown.</param>
-    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationPaths paths, IWindowRegistry windows)
+    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationDataPaths paths, IWindowRegistry windows)
     {
         Session = session;
         _windows = windows;
@@ -46,7 +48,7 @@ public sealed partial class MainWindow : Window
         UpdatePane();
         ExtendsContentIntoTitleBar = true; SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        AppWindow.SetIcon(Path.Combine(paths.InstallDirectory, "Assets", "AppIcon.ico"));
+        AppWindow.SetIcon(Path.Combine(paths.ContentRoot, "Assets", "AppIcon.ico"));
         Session.PropertyChanged += SessionChanged;
         Closed += (_, _) =>
         {

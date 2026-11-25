@@ -21,7 +21,7 @@ public partial class App : Application
     {
         InitializeComponent();
         var builder = WinUIApplication.CreateBuilder(this,
-            new WinUIApplicationOptions { ApplicationDataName = "MyApplication" });
+            new WinUIApplicationOptions { PublisherName = "MyCompany", ApplicationDataName = "MyApplication" });
         builder.UseWinUIApplication<MainWindow>();
         // Register application services and IWinUIStartupParticipant implementations here.
         var host = builder.Build();
@@ -62,15 +62,20 @@ User close, programmatic Window.Close, explicit shutdown and host-stop signals c
 
 The consumer's AssemblyConfigurationAttribute determines the environment: Debug → Development, Release → Production, other names unchanged. DOTNET_ENVIRONMENT and application-setting environment variables are ignored. By default the consuming App type supplies the assembly; ApplicationAssembly can explicitly select metadata from another consumer assembly.
 
-Settings load once, without watchers, from lowest to highest priority:
+Host configuration loads from lowest to highest priority:
 
 1. `appsettings.json` in ContentRootPath (default AppContext.BaseDirectory).
 2. `appsettings.{Environment}.json` in that directory.
-3. `appsettings.json` in the writable application-data root.
 
-The consumer owns its bundled files and their output/publish rules; Dhara ships no application settings. A malformed/inaccessible configuration file yields an empty snapshot and a safe WinUIConfigurationStatus.Error, rather than silently falling through. An application can still show repair UI and choose how to persist repaired settings. File persistence, authentication and restart-vs-immediate setting behavior are application responsibilities.
+The executable owns these files and their output/publish rules. Dhara ships no application JSON and provides no API to write host files. `ReloadOnChange` defaults to false; set it to true to opt into the framework JSON providers' file watchers. `ApplicationConfiguration.Load` and `ApplicationEnvironment.Resolve` are also usable by console/tool consumers without creating a host or XAML Application. An initial malformed/inaccessible file produces an empty root and safe `ApplicationConfigurationStatus.Error`; correcting host files is an external action. The status describes initial loading, not subsequent watcher events. The consumer chooses when to capture configuration into immutable workflow snapshots.
 
-ApplicationDataPaths selects Windows.Storage.ApplicationData.Current.LocalFolder only when the process has actual package identity. Otherwise it uses LocalApplicationData/ApplicationDataName. The library does not grant package identity. LocalStorageRoot and ContentRootPath can isolate tests or implement another deliberate storage policy. Resolving paths does not write files. ILocalStorageFolderLauncher creates/opens the configured root in Explorer.
+`Storage.ILocalSettingsStore` holds runtime overrides independently of IConfiguration. Features read their local key/group first and use host defaults when absent. One registered `LocalSettingsStore` serializes this process's writes; it does not synchronize competing processes. `Read`, `ReadGroup`, `WriteAsync`, `RemoveAsync` and `UpdateGroupAsync` never reload or write host files. Invalid types throw `LocalSettingsValueException`; native access failures become safe IOException messages. Only an explicit `repairInvalid: true` group update may replace a malformed group; it cannot suppress storage access failures. Cancellation is honored before the synchronous native commit; that commit cannot be interrupted.
+
+`WindowsLocalSettingsContainer` uses Microsoft.Windows.Storage.ApplicationData containers for packaged and unpackaged processes. Groups use a typed string envelope stored by one native assignment, preserving related values atomically. The older Windows.Storage.ApplicationDataCompositeValue is incompatible with these SDK containers. Groups support strings, Boolean/numeric primitives, Char, Guid, DateTimeOffset, TimeSpan and arrays of those types; arbitrary objects and nested groups are rejected before commit. Native size limits apply: use the file service for larger data. Serialized group data lives inside native LocalSettings, never in an appsettings/settings JSON file. LocalSettings is for preferences, not secrets. Tests/custom backends can supply `SettingsContainer`; `LocalStorageRoot` affects files only, so isolated tests should supply both.
+
+`ApplicationDataContext` opens GetDefault for real package identity, otherwise GetForUnpackaged(PublisherName, ApplicationDataName). Choose a stable explicit publisher/product identity: it determines native settings and file locations. `ApplicationDataPaths` exposes the executable ContentRoot and native LocalPath; unpackaged files use LocalApplicationData/publisher/product. Disposing the context releases handles without deleting data. `LocalStorageService` supplies cancellable file reads, atomic replacement and deletion separately from native preferences. `ILocalStorageFolderLauncher` creates/opens the configured file root in Explorer; it does not open the native settings store.
+
+The executable owns Windows App SDK deployment and initialization. Console consumers need no WinUI Application or dispatcher to use storage; include the native runtime and initialize C#/WinRT wrappers. Tools loaded into a different executable may additionally need the startup executable's activation manifest and resource directory, as FoodHub.Database's EF factory demonstrates. No automatic legacy imports or alternate-store fallback occurs.
 
 IAppRuntimeEnvironment and IHostEnvironment.IsPackaged report actual Windows process identity independently of build configuration. Unexpected native detection errors propagate.
 
@@ -86,3 +91,5 @@ For example, a modal owner should disable input only after creating/initializing
 The main window and registered secondary windows share one UI thread in this initial version. Only one lifecycle bridge is supported per Application. App activation redirection, single-instance handling, service/tray operation, automatic window discovery and arbitrary multithreaded windows are deferred.
 
 References: [WinUI Application.Start](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.application.start), [Generic Host](https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host), [DispatcherQueue](https://learn.microsoft.com/en-us/windows/apps/develop/dispatcherqueue), and [WinRT picker ownership](https://learn.microsoft.com/en-us/windows/apps/develop/ui/display-ui-objects).
+
+Storage references: [Windows App SDK ApplicationData](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.windows.storage.applicationdata), [unpackaged application data](https://github.com/microsoft/WindowsAppSDK/blob/main/specs/applicationdata/ApplicationData.md), and [settings guidance](https://learn.microsoft.com/en-us/windows/apps/design/app-settings/store-and-retrieve-app-data).

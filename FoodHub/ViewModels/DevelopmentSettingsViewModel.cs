@@ -20,7 +20,7 @@ public sealed class DevelopmentSettingsViewModel : ObservableObject, IDisposable
     private string _message = "";
     /// <summary>Runtime environment gate, independent of build configuration and package identity.</summary>
     public bool IsDevelopment { get; }
-    /// <summary>The exact root used for configuration, appearance, and encrypted sessions.</summary>
+    /// <summary>The active file storage root; native preferences are stored separately.</summary>
     public string StoragePath { get; }
     /// <summary>Prevents duplicate Explorer launches.</summary>
     public bool IsOpening { get => _isOpening; private set { SetProperty(ref _isOpening, value); OpenFolderCommand.NotifyCanExecuteChanged(); } }

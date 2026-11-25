@@ -24,7 +24,7 @@ Names/phone and addresses are edited after registration. Photos are optional. Ac
 
 ## Session lifecycle
 
-Unchecked Stay signed in keeps a token only in memory (eight hours maximum); app restart starts as Guest. Checked saves a Windows LOCAL=user protected token for seven days in the active local storage root (package LocalFolder or unpackaged AppData/FoodHub). SQL contains the SHA-256 digest, never the bearer token. Reads never renew expiry. Corrupt/decryption-failed storage is treated as Guest.
+Unchecked Stay signed in keeps a token only in memory (eight hours maximum); app restart starts as Guest. Checked saves a Windows LOCAL=user protected token for seven days in the active local storage root (package LocalPath or unpackaged LocalAppData/dashe/FoodHub). SQL contains the SHA-256 digest, never the bearer token. Reads never renew expiry. Corrupt/decryption-failed storage is treated as Guest.
 
 SQL Server must validate a remembered token before displaying private data. During database or configuration failures, private profile state is hidden and retry remains available. Invalid/revoked/expired tokens are cleared. SessionState checks expiry while the application remains open and discards workflow results after account changes. Each page/window cancels its own pending work when closed.
 

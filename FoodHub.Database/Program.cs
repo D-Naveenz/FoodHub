@@ -10,6 +10,8 @@ try
         Console.WriteLine("reset deletes localhost/FoodHub_Dev and all its data, then recreates the current schema. No backup or demo data is created.");
         return 2;
     }
+    // Console startup has no generated WinUI entry point to register C#/WinRT wrappers.
+    WinRT.ComWrappersSupport.InitializeComWrappers();
     var settings = DatabaseConfiguration.LoadSettings(typeof(Program).Assembly);
     var connection = settings.RequireConnectionString();
     if (args[0] == "reset")

@@ -1,15 +1,20 @@
 <Project>
   <PropertyGroup>
-    <!-- Match DesktopEnvironment: custom MSBuild configurations keep their own environment names. -->
+    <!-- Match ApplicationEnvironment: custom MSBuild configurations keep their own environment names. -->
     <FoodHubEnvironment>$(Configuration)</FoodHubEnvironment>
     <FoodHubEnvironment Condition="'$(Configuration)' == 'Debug'">Development</FoodHubEnvironment>
     <FoodHubEnvironment Condition="'$(Configuration)' == 'Release'">Production</FoodHubEnvironment>
   </PropertyGroup>
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'FoodHub.Core'">
-    <!-- Declare content once; project references propagate it to each executable and package. -->
+  <!-- Each executable owns its output defaults; Core and Dhara ship no application JSON. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'FoodHub'">
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="appsettings.$(FoodHubEnvironment).json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
              Condition="Exists('appsettings.$(FoodHubEnvironment).json')" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'FoodHub.Database'">
+    <Content Include="../FoodHub/appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../FoodHub/appsettings.$(FoodHubEnvironment).json" Link="appsettings.$(FoodHubEnvironment).json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+             Condition="Exists('../FoodHub/appsettings.$(FoodHubEnvironment).json')" />
   </ItemGroup>
   <!-- A reused output/publish directory must not accidentally ship another profile's defaults.
        Only environment settings in build artifacts are removed; local user settings are never touched. -->

@@ -1,17 +1,30 @@
-namespace FoodHub.Core.Services;
+namespace Dhara.Extensions.WinUI.Storage;
 
-/// <summary>Persists small application files independently of FoodHub accounts and Windows UI APIs.</summary>
+/// <summary>Persists small application files independently of application accounts and Windows UI APIs.</summary>
 public interface ILocalStorageService
 {
     /// <summary>The active packaged or unpackaged writable root.</summary>
     string RootDirectory { get; }
     /// <summary>Resolves one application-owned filename inside the storage root.</summary>
+    /// <param name="fileName">One filename without directory components.</param>
+    /// <returns>The absolute path inside the configured root.</returns>
+    /// <exception cref="ArgumentException">The name is empty, invalid or contains path components.</exception>
     string GetFilePath(string fileName);
     /// <summary>Reads a file, or returns null when it has not been created.</summary>
+    /// <param name="fileName">One application-owned filename.</param>
+    /// <param name="cancellation">Cancels the asynchronous read.</param>
+    /// <returns>File bytes, or null if the file or its parent directory is absent.</returns>
     Task<byte[]?> ReadAsync(string fileName, CancellationToken cancellation = default);
     /// <summary>Atomically replaces a file after all bytes have been written.</summary>
+    /// <param name="fileName">One application-owned filename.</param>
+    /// <param name="bytes">The complete new contents.</param>
+    /// <param name="cancellation">Cancels before replacement, leaving the previous file intact.</param>
+    /// <returns>A task completing after same-volume replacement.</returns>
     Task WriteAsync(string fileName, ReadOnlyMemory<byte> bytes, CancellationToken cancellation = default);
     /// <summary>Deletes a file if present.</summary>
+    /// <param name="fileName">One application-owned filename.</param>
+    /// <param name="cancellation">Cancels before deletion begins.</param>
+    /// <returns>A completed task after deletion; an absent file is already deleted.</returns>
     Task DeleteAsync(string fileName, CancellationToken cancellation = default);
 }
 
@@ -19,6 +32,7 @@ public interface ILocalStorageService
 public sealed class LocalStorageService : ILocalStorageService
 {
     /// <summary>Captures a root without performing I/O or depending on the current working directory.</summary>
+    /// <param name="rootDirectory">The absolute or relative writable root, normalized during construction.</param>
     public LocalStorageService(string rootDirectory) => RootDirectory = Path.GetFullPath(rootDirectory);
     /// <inheritdoc/>
     public string RootDirectory { get; }

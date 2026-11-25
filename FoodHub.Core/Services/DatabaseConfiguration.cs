@@ -1,10 +1,9 @@
-using FoodHub.Core.Hosting;
+using Dhara.Extensions.WinUI.Storage;
+using Dhara.Extensions.WinUI.Hosting;
 using FoodHub.Core.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
-using System.Text.Json.Nodes;
 
 namespace FoodHub.Core.Services;
 
@@ -16,12 +15,23 @@ public sealed class DatabaseSettings
 {
     /// <summary>Captures values once so saving never changes active operations.</summary>
     /// <param name="configuration">The effective general configuration after all JSON layers are loaded.</param>
+    /// <param name="localSettings">Optional runtime overrides, read independently from host configuration.</param>
     /// <param name="loadError">A safe general loading error; non-null prevents database fallback.</param>
-    public DatabaseSettings(IConfiguration configuration, string? loadError = null)
+    public DatabaseSettings(IConfiguration configuration, string? loadError = null, ILocalSettingsStore? localSettings = null)
     {
         ConnectionString = configuration.GetConnectionString("FoodHub") ?? "";
         LoadError = loadError;
-        ResetSessionOnStartup = bool.TryParse(configuration["FoodHub:ResetSessionOnStartup"], out var reset) && reset;
+        if (localSettings is null) return;
+        try
+        {
+            var group = localSettings.ReadGroup("Database");
+            if (group.TryGetValue("ConnectionString", out var connection))
+                ConnectionString = connection as string ?? throw new LocalSettingsValueException("The local connection override has an invalid type.");
+            if (group.TryGetValue("ResetSessionOnStartup", out var reset))
+                ResetSessionOnStartup = reset is bool flag ? flag : throw new LocalSettingsValueException("The local reset marker has an invalid type.");
+        }
+        catch (LocalSettingsValueException) { LoadError ??= "Saved database settings are invalid. Save or reset the local override in Settings, then restart."; }
+        catch (IOException) { LoadError ??= "Local database settings could not be accessed. Check access to application data, then restart."; }
     }
     /// <summary>Active connection; never write this value to logs.</summary>
     public string ConnectionString { get; }
@@ -55,38 +65,50 @@ public sealed class DatabaseSettings
 
 /// <summary>Adapts shared application configuration to parameterless contexts and EF design-time tools.</summary>
 /// <remarks>Provider loading belongs to ApplicationConfiguration; this adapter only creates database snapshots.</remarks>
-public sealed class DatabaseConfiguration : IDesignTimeDbContextFactory<FoodHub_DevContext>
+public static class DatabaseConfiguration
 {
     private static readonly Lazy<DatabaseSettings> Default = new(() => LoadSettings(
         System.Reflection.Assembly.GetEntryAssembly() ?? typeof(DatabaseConfiguration).Assembly));
 
     /// <summary>Creates a database snapshot using the selected consumer's build environment.</summary>
     /// <param name="applicationAssembly">The administration executable or EF design-time factory assembly.</param>
+    /// <param name="contentRoot">Optional startup project output directory for tools hosted by another executable.</param>
     /// <returns>A launch snapshot; no SQL connection is opened.</returns>
-    public static DatabaseSettings LoadSettings(System.Reflection.Assembly applicationAssembly)
+    public static DatabaseSettings LoadSettings(System.Reflection.Assembly applicationAssembly, string? contentRoot = null)
     {
-        var (configuration, error) = ApplicationConfiguration.Load(new ApplicationPaths(), DesktopEnvironment.Resolve(applicationAssembly));
-        using (configuration as IDisposable) return new DatabaseSettings(configuration, error);
+        var (configuration, error) = ApplicationConfiguration.Load(contentRoot ?? AppContext.BaseDirectory, ApplicationEnvironment.Resolve(applicationAssembly));
+        ApplicationDataContext? context = null;
+        try
+        {
+            // Opening inside the adapter lets the snapshot report native access failures safely.
+            using var container = new WindowsLocalSettingsContainer(() =>
+                (context ??= new ApplicationDataContext("dashe", "FoodHub", new Dhara.Extensions.WinUI.AppRuntimeEnvironment()))
+                .OpenSettings("RuntimeSettings"));
+            using var localSettings = new LocalSettingsStore(container);
+            return new DatabaseSettings(configuration, error, localSettings);
+        }
+        finally
+        {
+            context?.Dispose();
+            (configuration as IDisposable)?.Dispose();
+        }
     }
 
     /// <summary>Gets the validated connection for a parameterless context.</summary>
     public static string ConnectionString => Default.Value.RequireConnectionString();
     /// <summary>Creates a short-lived context from the parameterless consumer's launch snapshot.</summary>
     public static FoodHub_DevContext Open() => Default.Value.Open();
-    /// <summary>Creates a context using the factory assembly's configuration without applying migrations.</summary>
-    /// <param name="args">EF arguments; application-setting command-line overrides are not supported.</param>
-    /// <returns>A context that EF tooling owns and disposes.</returns>
-    public FoodHub_DevContext CreateDbContext(string[] args) => LoadSettings(typeof(DatabaseConfiguration).Assembly).Open();
+
 }
 
 /// <summary>Persists next-launch settings atomically without changing the active database.</summary>
-/// <param name="settings">The general JSON writer shared with appearance and other settings features.</param>
+/// <param name="settings">The native settings store shared with appearance and other runtime features.</param>
 /// <param name="active">The immutable launch snapshot used by current workflows.</param>
 /// <remarks>
 /// A saved connection never changes an existing context or authenticated workflow. The next launch removes
 /// remembered authentication before consuming the reset marker, preventing restoration against another database.
 /// </remarks>
-public sealed class DatabaseSettingsStore(LocalSettingsStore settings, DatabaseSettings active)
+public sealed class DatabaseSettingsStore(ILocalSettingsStore settings, DatabaseSettings active)
 {
     /// <summary>Survives Settings navigation until restart.</summary>
     public bool RestartRequired { get; private set; }
@@ -107,10 +129,10 @@ public sealed class DatabaseSettingsStore(LocalSettingsStore settings, DatabaseS
     }
     /// <summary>Saves an override, or removes it to use defaults; no SQL availability is required.</summary>
     /// <param name="connectionString">The next-launch connection, or null to remove only the local override.</param>
-    /// <param name="cancellation">Cancels waiting or persistence before the file is replaced.</param>
+    /// <param name="cancellation">Cancels waiting or persistence before the native value is committed.</param>
     /// <returns>A task completing after settings and the durable reset marker are saved together.</returns>
     /// <exception cref="DatabaseConfigurationException">The supplied connection is invalid.</exception>
-    /// <remarks>This explicit repair action may replace malformed JSON; valid unrelated settings are retained.</remarks>
+    /// <remarks>This explicit repair action can replace an invalid database group; host files and unrelated local settings are retained.</remarks>
     public async Task SaveAsync(string? connectionString, CancellationToken cancellation = default)
     {
         if (connectionString is not null)
@@ -119,16 +141,13 @@ public sealed class DatabaseSettingsStore(LocalSettingsStore settings, DatabaseS
                 { ["ConnectionStrings:FoodHub"] = connectionString }).Build();
             using (candidate as IDisposable) _ = new DatabaseSettings(candidate).RequireConnectionString();
         }
-        await settings.UpdateAsync(json =>
+        await settings.UpdateGroupAsync("Database", group =>
         {
-            if (json["ConnectionStrings"] is not JsonObject) json["ConnectionStrings"] = new JsonObject();
-            var connections = (JsonObject)json["ConnectionStrings"]!;
-            if (connectionString is null) connections.Remove("FoodHub");
-            else connections["FoodHub"] = connectionString;
-            if (json["FoodHub"] is not JsonObject) json["FoodHub"] = new JsonObject();
-            // Reset on next launch, including after switching back to defaults.
-            json["FoodHub"]!["ResetSessionOnStartup"] = true;
-        }, repairMalformed: true, cancellation);
+            if (connectionString is null) group.Remove("ConnectionString");
+            else group["ConnectionString"] = connectionString;
+            // One native group commit stores both the override and the durable token-reset request.
+            group["ResetSessionOnStartup"] = true;
+        }, repairInvalid: true, cancellation);
         // Publish pending state only after persistence succeeds; the active snapshot remains unchanged.
         PendingConnectionString = connectionString;
         RestartRequired = true;
@@ -142,10 +161,6 @@ public sealed class DatabaseSettingsStore(LocalSettingsStore settings, DatabaseS
         if (active.LoadError is not null) throw new DatabaseConfigurationException(active.LoadError);
         if (!active.ResetSessionOnStartup) return;
         await removeToken(); // Failure leaves the marker intact and suppresses restoration.
-        await settings.UpdateAsync(json =>
-        {
-            if (json["FoodHub"] is not JsonObject) json["FoodHub"] = new JsonObject();
-            json["FoodHub"]!["ResetSessionOnStartup"] = false;
-        });
+        await settings.UpdateGroupAsync("Database", group => group["ResetSessionOnStartup"] = false);
     }
 }

@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text.Json;
 using Dhara.Extensions.WinUI.Storage;
 using Dhara.Extensions.WinUI.Threading;
 using Dhara.Extensions.WinUI.Windowing;
@@ -17,6 +16,12 @@ namespace Dhara.Extensions.WinUI.Hosting;
 /// <summary>Customizes desktop hosting without coupling the library to an application's domain services.</summary>
 public sealed class WinUIApplicationOptions
 {
+    /// <summary>Gets the explicit publisher identity used by unpackaged application data.</summary>
+    public required string PublisherName { get; init; }
+    /// <summary>Gets an optional injected settings container for isolated tests or a custom native store.</summary>
+    public ILocalSettingsContainer? SettingsContainer { get; init; }
+    /// <summary>Gets whether framework JSON providers watch external edits to host files; defaults to false.</summary>
+    public bool ReloadOnChange { get; init; }
     /// <summary>Gets the unpackaged data directory name, unique to the consuming application.</summary>
     public required string ApplicationDataName { get; init; }
     /// <summary>Gets an optional content root; null uses the executable's base directory.</summary>
@@ -35,10 +40,6 @@ public sealed class WinUIApplicationOptions
     public Action? ExitApplication { get; init; }
 }
 
-/// <summary>Reports application configuration loading without exposing values or raw exception messages.</summary>
-/// <param name="Error">Null on success, or a safe diagnostic when bundled/local JSON could not be loaded.</param>
-public sealed record WinUIConfigurationStatus(string? Error);
-
 /// <summary>Creates a Generic Host around an existing, framework-created WinUI Application.</summary>
 /// <remarks>
 /// The generated WinUI entry point continues to own COM/XAML initialization and the message loop. Call this
@@ -48,7 +49,7 @@ public sealed record WinUIConfigurationStatus(string? Error);
 /// <example>
 /// <code>
 /// var builder = WinUIApplication.CreateBuilder(this,
-///     new WinUIApplicationOptions { ApplicationDataName = "MyApplication" });
+///     new WinUIApplicationOptions { PublisherName = "MyCompany", ApplicationDataName = "MyApplication" });
 /// builder.UseWinUIApplication&lt;MainWindow&gt;();
 /// // Register application services and optional startup participants here.
 /// IHost host = builder.Build();
@@ -68,27 +69,9 @@ public static class WinUIApplication
         where TApplication : Application => new(application, options);
 }
 
-/// <summary>Resolves desktop environments from consumer build metadata, independently of process environment variables.</summary>
-public static class WinUIEnvironment
-{
-    /// <summary>Maps Debug to Development, Release to Production, and preserves custom configuration names.</summary>
-    /// <param name="assembly">The consuming assembly, never the reusable library's assembly.</param>
-    /// <returns>The hosting environment and corresponding JSON filename component.</returns>
-    /// <exception cref="InvalidOperationException">SDK configuration metadata is missing or unsafe for a filename.</exception>
-    public static string Resolve(Assembly assembly)
-    {
-        var name = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration;
-        if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name is "." or "..")
-            throw new InvalidOperationException("The application assembly must have valid AssemblyConfigurationAttribute metadata.");
-        if (name.Equals("Debug", StringComparison.OrdinalIgnoreCase)) return Environments.Development;
-        if (name.Equals("Release", StringComparison.OrdinalIgnoreCase)) return Environments.Production;
-        return name;
-    }
-}
-
 /// <summary>Wraps the standard host builder with desktop defaults and no application-specific dependencies.</summary>
 /// <remarks>
-/// JSON precedence is base, selected environment, then local overrides. Loading occurs once without watchers.
+/// JSON precedence is base then selected environment. Native LocalSettings remain separate from IConfiguration; file watching is opt-in.
 /// Malformed configuration produces an empty snapshot and safe status rather than silently choosing another database.
 /// The built host owns services and configuration. After registration, the lifecycle controller owns starting,
 /// stopping and disposing that host on the captured dispatcher.
@@ -107,9 +90,9 @@ public sealed class WinUIApplicationBuilder : IHostApplicationBuilder
         var dispatcher = options.Dispatcher ?? new UIThreadDispatcher(DispatcherQueue.GetForCurrentThread()
             ?? throw new InvalidOperationException("Create the WinUI host on the application's UI thread."));
         var assembly = options.ApplicationAssembly ?? application.GetType().Assembly;
-        var environment = WinUIEnvironment.Resolve(assembly);
+        var environment = ApplicationEnvironment.Resolve(assembly);
         var runtime = new AppRuntimeEnvironment();
-        var paths = new ApplicationDataPaths(options.ApplicationDataName, runtime, options.ContentRootPath, options.LocalStorageRoot);
+        var paths = new ApplicationDataPaths(options.PublisherName, options.ApplicationDataName, runtime, options.ContentRootPath, options.LocalStorageRoot);
         _builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
             DisableDefaults = true,
@@ -117,7 +100,7 @@ public sealed class WinUIApplicationBuilder : IHostApplicationBuilder
             EnvironmentName = environment,
             ContentRootPath = paths.ContentRoot
         });
-        var (configuration, status) = LoadConfiguration(paths, environment);
+        var (configuration, error) = ApplicationConfiguration.Load(paths.ContentRoot, environment, options.ReloadOnChange);
         Configuration.AddConfiguration(configuration, shouldDisposeConfiguration: true);
         Logging.AddConfiguration(Configuration.GetSection("Logging"));
         Logging.AddDebug();
@@ -131,30 +114,18 @@ public sealed class WinUIApplicationBuilder : IHostApplicationBuilder
         Services.AddSingleton<IUIThreadDispatcher>(dispatcher);
         Services.AddSingleton<IAppRuntimeEnvironment>(runtime);
         Services.AddSingleton(paths);
-        Services.AddSingleton(status);
+        Services.AddSingleton(new ApplicationConfigurationStatus(error));
+        Services.AddSingleton(sp => new ApplicationDataContext(options.PublisherName, options.ApplicationDataName, runtime));
+        Services.AddSingleton<ILocalSettingsContainer>(sp => options.SettingsContainer ?? new WindowsLocalSettingsContainer(
+            () => sp.GetRequiredService<ApplicationDataContext>().OpenSettings("RuntimeSettings")));
+        Services.AddSingleton<ILocalSettingsStore, LocalSettingsStore>();
+        Services.AddSingleton<ILocalStorageService>(_ => new LocalStorageService(paths.RootDirectory));
         Services.AddSingleton<ILocalStorageFolderLauncher, LocalStorageFolderLauncher>();
         Services.AddSingleton<WindowRegistry>();
         Services.AddSingleton<IWindowRegistry>(sp => sp.GetRequiredService<WindowRegistry>());
         Services.AddSingleton<WindowThemeService>();
         // ConsoleLifetime must not attach console shutdown behavior or own the WinUI message loop.
         Services.Replace(ServiceDescriptor.Singleton<IHostLifetime, WinUIHostLifetime>());
-    }
-
-    /// <summary>Loads reusable desktop JSON conventions; Core/tool adapters can be tested against the same contract.</summary>
-    private static (IConfigurationRoot Configuration, WinUIConfigurationStatus Status) LoadConfiguration(ApplicationDataPaths paths, string environment)
-    {
-        try
-        {
-            var configuration = new ConfigurationBuilder().SetBasePath(paths.ContentRoot)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false)
-                .AddJsonFile(Path.Combine(paths.RootDirectory, "appsettings.json"), optional: true, reloadOnChange: false).Build();
-            return (configuration, new(null));
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or FormatException or JsonException)
-        {
-            return (new ConfigurationBuilder().Build(), new("Application settings could not be read. Repair or reset them in Settings, then restart."));
-        }
     }
 
     /// <inheritdoc/>

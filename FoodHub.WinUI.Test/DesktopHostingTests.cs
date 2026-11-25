@@ -1,3 +1,4 @@
+using Dhara.Extensions.WinUI.Storage;
 using Dhara.Extensions.WinUI.Hosting;
 using Dhara.Extensions.WinUI.Threading;
 using Dhara.Extensions.WinUI.Windowing;
@@ -22,6 +23,7 @@ public sealed class DesktopHostingTests
 {
     private string _root = "";
     private LocalStorageService _storage = null!;
+    private SettingsTestContainer _container = null!;
 
     /// <summary>Creates content and writable roots belonging exclusively to this test.</summary>
     [TestInitialize]
@@ -29,6 +31,7 @@ public sealed class DesktopHostingTests
     {
         _root = Path.Combine(Path.GetTempPath(), "FoodHub-host-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
+        _container = new SettingsTestContainer();
         _storage = new LocalStorageService(Path.Combine(_root, "user"));
     }
 
@@ -50,15 +53,14 @@ public sealed class DesktopHostingTests
     {
         var builder = WinUIApplication.CreateBuilder(Application.Current, new WinUIApplicationOptions
         {
-            ApplicationDataName = "Dhara.Tests",
+            PublisherName = "Dhara.Tests",
+            ApplicationDataName = "ConfigurationTests",
+            SettingsContainer = _container,
             ApplicationAssembly = Consumer(configuration),
             ContentRootPath = _root,
             LocalStorageRoot = _storage.RootDirectory,
             Dispatcher = new UIThreadDispatcher(UITestMethodAttribute.DispatcherQueue!)
         });
-        builder.Services.AddSingleton<ILocalStorageService>(_storage);
-        builder.Services.AddSingleton<LocalSettingsStore>();
-        builder.Services.AddSingleton(sp => new ApplicationConfigurationStatus(sp.GetRequiredService<WinUIConfigurationStatus>().Error));
         return builder;
     }
 
@@ -79,49 +81,43 @@ public sealed class DesktopHostingTests
     [TestMethod]
     public void MissingOrUnsafeMetadataFailsClearly()
     {
-        Assert.Throws<InvalidOperationException>(() => WinUIEnvironment.Resolve(Consumer(null)));
-        Assert.Throws<InvalidOperationException>(() => WinUIEnvironment.Resolve(Consumer("../outside")));
+        Assert.Throws<InvalidOperationException>(() => ApplicationEnvironment.Resolve(Consumer(null)));
+        Assert.Throws<InvalidOperationException>(() => ApplicationEnvironment.Resolve(Consumer("../outside")));
     }
 
-    /// <summary>The Windows host and portable tool loader select the same profile names and effective JSON values.</summary>
+    /// <summary>Host IConfiguration never merges native overrides or reads an obsolete local appsettings file.</summary>
     [TestMethod]
-    [DataRow("Debug", "Development")]
-    [DataRow("Release", "Production")]
-    [DataRow("Staging", "Staging")]
-    public async Task ToolAndWinUIConfigurationContractsMatch(string profile, string environment)
+    public async Task HostConfigurationIsSeparateFromRuntimeSettings()
     {
-        await File.WriteAllTextAsync(Path.Combine(_root, "appsettings.json"), "{\"Appearance\":{\"Theme\":\"System\"},\"Other\":\"base\"}");
-        await File.WriteAllTextAsync(Path.Combine(_root, $"appsettings.{environment}.json"), "{\"Appearance\":{\"Theme\":\"Dark\"}}");
-        await _storage.WriteAsync("appsettings.json", "{\"Other\":\"local\"}"u8.ToArray());
-        using var host = Builder(profile).Build();
-        var (portable, error) = ApplicationConfiguration.Load(new ApplicationPaths(_root, _storage.RootDirectory), environment);
-        using (portable as IDisposable)
+        await File.WriteAllTextAsync(Path.Combine(_root, "appsettings.json"), "{\"Appearance\":{\"Theme\":\"System\"}}");
+        await _storage.WriteAsync("appsettings.json", "{ broken obsolete JSON"u8.ToArray());
+        _container.Values["Appearance.Theme"] = "Dark";
+        using var host = Builder("Release").Build();
+        Assert.AreEqual("System", host.Services.GetRequiredService<IConfiguration>()["Appearance:Theme"]);
+        Assert.AreEqual("Dark", host.Services.GetRequiredService<ILocalSettingsStore>().Read("Appearance.Theme", "System"));
+        Assert.IsNull(host.Services.GetRequiredService<ApplicationConfigurationStatus>().Error);
+    }
+
+    /// <summary>External file changes reload host defaults only when watching is explicitly enabled.</summary>
+    [TestMethod]
+    public async Task OptionalFileWatchingPreservesDatabaseSnapshot()
+    {
+        var file = Path.Combine(_root, "appsettings.json");
+        await File.WriteAllTextAsync(file, "{\"ConnectionStrings\":{\"FoodHub\":\"Server=first;Database=One\"}}");
+        var (configuration, error) = ApplicationConfiguration.Load(_root, "Production", reloadOnChange: true);
+        using (configuration as IDisposable)
         {
             Assert.IsNull(error);
-            Assert.AreEqual(DesktopEnvironment.Resolve(Consumer(profile)), host.Services.GetRequiredService<IHostEnvironment>().EnvironmentName);
-            var windows = host.Services.GetRequiredService<IConfiguration>();
-            Assert.AreEqual(portable["Appearance:Theme"], windows["Appearance:Theme"]);
-            Assert.AreEqual(portable["Other"], windows["Other"]);
-        }
-    }
-
-    /// <summary>Both consumers reject malformed/duplicate settings rather than using defaults from another layer.</summary>
-    [TestMethod]
-    [DataRow("{ broken")]
-    [DataRow("{\"Other\":1,\"other\":2}")]
-    [DataRow("[]")]
-    public async Task ToolAndWinUIConfigurationFailuresMatch(string malformed)
-    {
-        await File.WriteAllTextAsync(Path.Combine(_root, "appsettings.json"), "{\"Other\":\"must not fall through\"}");
-        await _storage.WriteAsync("appsettings.json", System.Text.Encoding.UTF8.GetBytes(malformed));
-        using var host = Builder("Release").Build();
-        var (portable, error) = ApplicationConfiguration.Load(new ApplicationPaths(_root, _storage.RootDirectory), "Production");
-        using (portable as IDisposable)
-        {
-            Assert.IsNotNull(error);
-            Assert.IsNotNull(host.Services.GetRequiredService<WinUIConfigurationStatus>().Error);
-            Assert.IsNull(host.Services.GetRequiredService<IConfiguration>()["Other"]);
-            Assert.IsNull(portable["Other"]);
+            var active = new DatabaseSettings(configuration);
+            var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = Microsoft.Extensions.Primitives.ChangeToken.OnChange(configuration.GetReloadToken, () =>
+            {
+                if (configuration.GetConnectionString("FoodHub") == "Server=second;Database=Two") changed.TrySetResult();
+            });
+            await File.WriteAllTextAsync(file, "{\"ConnectionStrings\":{\"FoodHub\":\"Server=second;Database=Two\"}}");
+            await changed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.AreEqual("Server=first;Database=One", active.ConnectionString);
+            Assert.AreEqual("Server=second;Database=Two", configuration.GetConnectionString("FoodHub"));
         }
     }
 
@@ -171,7 +167,7 @@ public sealed class DesktopHostingTests
         Assert.Throws<AggregateException>(() => builder.Build());
     }
 
-    /// <summary>Appearance participates in all three JSON layers, just like the database connection.</summary>
+    /// <summary>Environment defaults override base JSON; legacy local JSON never becomes host configuration.</summary>
     [TestMethod]
     public async Task GeneralSettingsUseTheSamePrecedence()
     {
@@ -181,71 +177,56 @@ public sealed class DesktopHostingTests
             Assert.AreEqual("Dark", host.Services.GetRequiredService<IConfiguration>()["Appearance:Theme"]);
         await _storage.WriteAsync("appsettings.json", System.Text.Encoding.UTF8.GetBytes("{\"Appearance\":{\"Theme\":\"Light\"}}"));
         using (var host = Builder("Staging").Build())
-            Assert.AreEqual("Light", host.Services.GetRequiredService<IConfiguration>()["Appearance:Theme"]);
+            Assert.AreEqual("Dark", host.Services.GetRequiredService<IConfiguration>()["Appearance:Theme"]);
     }
 
-    /// <summary>Concurrent feature edits retain both settings; resetting the database leaves appearance intact.</summary>
+    /// <summary>Concurrent native feature edits preserve each other and do not mutate the host defaults.</summary>
     [TestMethod]
     public async Task SharedWriterPreservesConcurrentFeatureEdits()
     {
         using var host = Builder("Release").Build();
-        var settings = host.Services.GetRequiredService<LocalSettingsStore>();
+        var settings = host.Services.GetRequiredService<ILocalSettingsStore>();
         var database = new DatabaseSettingsStore(settings, new DatabaseSettings(host.Services.GetRequiredService<IConfiguration>()));
         var connection = DatabaseSettingsStore.BuildConnectionString("localhost", "FoodHub_Test", true);
-        await Task.WhenAll(database.SaveAsync(connection), settings.UpdateAsync(json =>
-            json["Appearance"] = new System.Text.Json.Nodes.JsonObject { ["Theme"] = "Dark" }));
+        await Task.WhenAll(database.SaveAsync(connection), settings.WriteAsync("Appearance.Theme", "Dark"));
         await database.SaveAsync(null);
-        var (configuration, error) = ApplicationConfiguration.Load(new ApplicationPaths(_root, _storage.RootDirectory), "Production");
-        using (configuration as IDisposable)
-        {
-            Assert.IsNull(error);
-            Assert.AreEqual("Dark", configuration["Appearance:Theme"]);
-            Assert.IsNull(configuration.GetConnectionString("FoodHub"));
-            Assert.AreEqual("True", configuration["FoodHub:ResetSessionOnStartup"]);
-        }
+        Assert.AreEqual("Dark", settings.Read("Appearance.Theme", "System"));
+        Assert.IsTrue((bool)settings.ReadGroup("Database")["ResetSessionOnStartup"]);
+        Assert.IsFalse(settings.ReadGroup("Database").ContainsKey("ConnectionString"));
+        Assert.IsNull(host.Services.GetRequiredService<IConfiguration>().GetConnectionString("FoodHub"));
     }
 
-    /// <summary>Normal saves cannot silently destroy malformed JSON; explicit database repair can replace it.</summary>
-    [TestMethod]
-    [DataRow("{ broken")]
-    [DataRow("{\"Other\":1,\"other\":2}")]
-    [DataRow("[]")]
-    public async Task MalformedSettingsRequireExplicitRepair(string malformed)
-    {
-        await _storage.WriteAsync("appsettings.json", System.Text.Encoding.UTF8.GetBytes(malformed));
-        using var settings = new LocalSettingsStore(_storage);
-        await Assert.ThrowsAsync<IOException>(() => settings.UpdateAsync(json => json["Other"] = true));
-        Assert.AreEqual(malformed, System.Text.Encoding.UTF8.GetString((await _storage.ReadAsync("appsettings.json"))!));
-        await new DatabaseSettingsStore(settings, new DatabaseSettings(new ConfigurationBuilder().Build())).SaveAsync(null);
-        Assert.IsTrue(System.Text.Json.Nodes.JsonNode.Parse((await _storage.ReadAsync("appsettings.json"))!) is not null);
-    }
-
-    /// <summary>Cancelled edits preserve existing bytes and release the gate for a subsequent successful save.</summary>
+    /// <summary>Cancelled native edits leave the prior value intact and allow a later successful write.</summary>
     [TestMethod]
     public async Task CancelledSettingsEditCanRetry()
     {
-        using var settings = new LocalSettingsStore(_storage);
-        await settings.UpdateAsync(json => json["Other"] = "keep");
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => settings.UpdateAsync(json => json["Other"] = "lost", cancellation: cancellation.Token));
-        await settings.UpdateAsync(json => Assert.AreEqual("keep", json["Other"]!.GetValue<string>()));
+        using var settings = new LocalSettingsStore(_container);
+        await settings.WriteAsync("Other", "keep");
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() => settings.WriteAsync("Other", "lost", cancellation.Token));
+        Assert.AreEqual("keep", settings.Read("Other", ""));
+        await settings.WriteAsync("Other", "retry");
+        Assert.AreEqual("retry", settings.Read("Other", ""));
     }
 
-    /// <summary>Appearance reads the launch snapshot, ignores theme.txt, and changes state only after a successful save.</summary>
+    /// <summary>Appearance resolves native overrides, ignores theme.txt, and changes UI state only after a successful commit.</summary>
     [TestMethod]
-    public Task AppearanceUsesJsonAndPreservesStateOnFailure() => WinUITestSupport.OnDispatcher(async () =>
+    public Task AppearanceUsesLocalSettingsAndPreservesStateOnFailure() => WinUITestSupport.OnDispatcher(async () =>
     {
         await _storage.WriteAsync("theme.txt", "Dark"u8.ToArray());
-        using var settings = new LocalSettingsStore(_storage);
+        using var settings = new LocalSettingsStore(_container);
+        using var themes = new WindowThemeService(new WindowRegistry(WinUITestSupport.Dispatcher), WinUITestSupport.Dispatcher);
         var appearance = new AppearanceSettings(new ConfigurationBuilder().AddInMemoryCollection(
-            new Dictionary<string, string?> { ["Appearance:Theme"] = "Light" }).Build(), settings,
-            new WindowThemeService(new WindowRegistry(WinUITestSupport.Dispatcher), WinUITestSupport.Dispatcher));
+            new Dictionary<string, string?> { ["Appearance:Theme"] = "Light" }).Build(), settings, themes);
         await appearance.LoadAsync();
         Assert.AreEqual(ElementTheme.Light, appearance.Theme);
-        await _storage.WriteAsync("appsettings.json", "{ broken"u8.ToArray());
+        _container.FailWrites = true;
         await Assert.ThrowsAsync<IOException>(() => appearance.SetThemeAsync(ElementTheme.Dark));
         Assert.AreEqual(ElementTheme.Light, appearance.Theme);
+        _container.FailWrites = false;
+        await settings.WriteAsync("Appearance.Theme", "Dark");
+        await appearance.LoadAsync();
+        Assert.AreEqual(ElementTheme.Dark, appearance.Theme);
     });
 
     /// <summary>A resource whose lifetime is observable without touching application data.</summary>
