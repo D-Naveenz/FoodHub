@@ -16,8 +16,5 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" PrivateAssets="all" />
     <EmbeddedResource Include="Migrations/Sql/*.sql" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" Condition="'$(Configuration)' == 'Debug'" />
-  </ItemGroup>
+  <!-- Shared build targets select bundled application settings for the active configuration. -->
 </Project>

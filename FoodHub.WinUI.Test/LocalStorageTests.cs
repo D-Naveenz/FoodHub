@@ -1,3 +1,4 @@
+using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.Services;
 using FoodHub.ViewModels;
@@ -8,7 +9,7 @@ using System.Text;
 
 namespace FoodHub.WinUI.Test;
 
-/// <summary>Exercises storage selection, atomic persistence, and one-time legacy settings import in isolated directories.</summary>
+/// <summary>Exercises storage selection and atomic persistence in isolated directories.</summary>
 [TestClass]
 [TestCategory("Unit")]
 public sealed class LocalStorageTests
@@ -37,19 +38,19 @@ public sealed class LocalStorageTests
     [TestMethod]
     public async Task AtomicWritePersistsAcrossInstances()
     {
-        await _storage.WriteAsync("theme.txt", Encoding.UTF8.GetBytes("Dark"));
-        await _storage.WriteAsync("theme.txt", Encoding.UTF8.GetBytes("Light"));
-        Assert.AreEqual("Light", Encoding.UTF8.GetString((await new LocalStorageService(_storage.RootDirectory).ReadAsync("theme.txt"))!));
+        await _storage.WriteAsync("example.dat", Encoding.UTF8.GetBytes("Dark"));
+        await _storage.WriteAsync("example.dat", Encoding.UTF8.GetBytes("Light"));
+        Assert.AreEqual("Light", Encoding.UTF8.GetString((await new LocalStorageService(_storage.RootDirectory).ReadAsync("example.dat"))!));
         Assert.AreEqual(0, Directory.GetFiles(_storage.RootDirectory, "*.tmp").Length);
     }
     /// <summary>Cancelled writes cannot replace existing settings.</summary>
     [TestMethod]
     public async Task CancellationPreservesExistingBytes()
     {
-        await _storage.WriteAsync("theme.txt", new byte[] { 1 });
+        await _storage.WriteAsync("example.dat", new byte[] { 1 });
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => _storage.WriteAsync("theme.txt", new byte[] { 2 }, cancelled.Token));
-        CollectionAssert.AreEqual(new byte[] { 1 }, (await _storage.ReadAsync("theme.txt"))!);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _storage.WriteAsync("example.dat", new byte[] { 2 }, cancelled.Token));
+        CollectionAssert.AreEqual(new byte[] { 1 }, (await _storage.ReadAsync("example.dat"))!);
     }
     /// <summary>Callers cannot use application file APIs to escape the active root.</summary>
     [TestMethod]
@@ -58,37 +59,6 @@ public sealed class LocalStorageTests
     [DataRow("C:\\outside")]
     [DataRow("..")]
     public void PathsRemainInsideRoot(string fileName) => Assert.Throws<ArgumentException>(() => _storage.GetFilePath(fileName));
-    /// <summary>Settings are copied once, authentication is not imported, and reset settings cannot resurrect.</summary>
-    [TestMethod]
-    public void MigrationImportsOnlyMissingSettingsOnce()
-    {
-        var legacy = Path.Combine(_root, "legacy"); Directory.CreateDirectory(legacy);
-        File.WriteAllText(Path.Combine(legacy, "appsettings.json"), "{}");
-        File.WriteAllText(Path.Combine(legacy, "theme.txt"), "Dark");
-        File.WriteAllText(Path.Combine(legacy, "session.dat"), "Legacy encrypted bytes stand-in");
-        Directory.CreateDirectory(_storage.RootDirectory);
-        File.WriteAllText(_storage.GetFilePath("theme.txt"), "Light");
-        LegacySettingsMigration.Import(legacy, _storage);
-        Assert.IsTrue(File.Exists(_storage.GetFilePath("appsettings.json")));
-        Assert.AreEqual("Light", File.ReadAllText(_storage.GetFilePath("theme.txt")));
-        Assert.IsFalse(File.Exists(_storage.GetFilePath("session.dat")));
-        Assert.IsTrue(File.Exists(Path.Combine(legacy, "session.dat")));
-        File.Delete(_storage.GetFilePath("appsettings.json"));
-        LegacySettingsMigration.Import(legacy, _storage);
-        Assert.IsFalse(File.Exists(_storage.GetFilePath("appsettings.json")));
-    }
-    /// <summary>A blocked destination leaves the import marker absent and retries successfully after access is repaired.</summary>
-    [TestMethod]
-    public void FailedMigrationCanRetry()
-    {
-        var legacy = Path.Combine(_root, "legacy"); Directory.CreateDirectory(legacy);
-        File.WriteAllText(Path.Combine(legacy, "theme.txt"), "Dark");
-        File.WriteAllText(_storage.RootDirectory, "blocked");
-        Assert.Throws<IOException>(() => LegacySettingsMigration.Import(legacy, _storage));
-        File.Delete(_storage.RootDirectory);
-        LegacySettingsMigration.Import(legacy, _storage);
-        Assert.AreEqual("Dark", File.ReadAllText(_storage.GetFilePath("theme.txt")));
-    }
     /// <summary>Unpackaged selection uses ordinary per-Windows-user FoodHub application data.</summary>
     [TestMethod]
     public void UnpackagedStorageUsesAppData()

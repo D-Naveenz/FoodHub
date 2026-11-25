@@ -1,3 +1,4 @@
+using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.Services;
 using FoodHub.ViewModels;
@@ -43,7 +44,7 @@ public sealed class DatabaseConfigurationTests
     }
     private DatabaseSettings Load(string environment = "Development")
     {
-        var (configuration, error) = DatabaseConfiguration.Load(_paths, environment);
+        var (configuration, error) = ApplicationConfiguration.Load(_paths, environment);
         using (configuration as IDisposable) return new(configuration, error);
     }
     private void Write(string path, string value)
@@ -51,7 +52,7 @@ public sealed class DatabaseConfigurationTests
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(new { ConnectionStrings = new { FoodHub = value } }));
     }
-    /// <summary>User JSON wins over legacy and standard environment providers, then environment JSON and base JSON.</summary>
+    /// <summary>Local JSON overrides environment and base JSON; process variables cannot override application settings.</summary>
     [TestMethod]
     public void ProviderPrecedenceIsExplicit()
     {
@@ -60,9 +61,9 @@ public sealed class DatabaseConfigurationTests
         Assert.AreEqual("development", Load().ConnectionString);
         Assert.AreEqual("base", Load("Production").ConnectionString);
         Environment.SetEnvironmentVariable("ConnectionStrings__FoodHub", "environment");
-        Assert.AreEqual("environment", Load().ConnectionString);
+        Assert.AreEqual("development", Load().ConnectionString);
         Environment.SetEnvironmentVariable("FOODHUB_CONNECTION_STRING", "legacy");
-        Assert.AreEqual("legacy", Load().ConnectionString);
+        Assert.AreEqual("development", Load().ConnectionString);
         Write(_paths.SettingsFile, "user");
         Assert.AreEqual("user", Load().ConnectionString);
     }
@@ -75,17 +76,13 @@ public sealed class DatabaseConfigurationTests
         try { Environment.CurrentDirectory = Path.GetTempPath(); Assert.IsNull(Load().LoadError); Assert.AreEqual(Local, Load().ConnectionString); }
         finally { Environment.CurrentDirectory = original; }
     }
-    /// <summary>Environment selection can be overridden without depending on package identity.</summary>
+    /// <summary>Build metadata chooses the environment even when DOTNET_ENVIRONMENT disagrees.</summary>
     [TestMethod]
-    public void BuildDefaultAndExplicitEnvironmentAreSeparate()
+    public void BuildConfigurationIgnoresEnvironmentVariable()
     {
-#if DEBUG
-        Assert.AreEqual("Development", DatabaseConfiguration.EnvironmentName);
-#else
-        Assert.AreEqual("Production", DatabaseConfiguration.EnvironmentName);
-#endif
-        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Staging");
-        Assert.AreEqual("Staging", DatabaseConfiguration.EnvironmentName);
+        var expected = DesktopEnvironment.Resolve(typeof(DatabaseConfigurationTests).Assembly);
+        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Unrelated");
+        Assert.AreEqual(expected, DesktopEnvironment.Resolve(typeof(DatabaseConfigurationTests).Assembly));
     }
     /// <summary>Malformed user JSON blocks fallback and remains repairable through explicit Save.</summary>
     [TestMethod]
@@ -97,7 +94,7 @@ public sealed class DatabaseConfigurationTests
         var active = Load();
         Assert.IsNotNull(active.LoadError);
         Assert.Throws<DatabaseConfigurationException>(() => active.RequireConnectionString());
-        await new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active).SaveAsync(Local);
+        await new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), active).SaveAsync(Local);
         Assert.IsNull(Load().LoadError);
     }
     /// <summary>Missing, invalid, and incomplete connection values produce safe setup errors.</summary>
@@ -127,7 +124,7 @@ public sealed class DatabaseConfigurationTests
     {
         Write(Path.Combine(_root, "appsettings.json"), Local);
         var active = Load();
-        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active);
+        var store = new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), active);
         var changed = DatabaseSettingsStore.BuildConnectionString("other-server", "Other", false);
         await store.SaveAsync(changed);
         Assert.IsTrue(store.RestartRequired);
@@ -140,9 +137,9 @@ public sealed class DatabaseConfigurationTests
     [TestMethod]
     public async Task ResetMarkerSurvivesFailedTokenDeletion()
     {
-        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), Load());
+        var store = new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), Load());
         await store.SaveAsync(Local);
-        var next = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), Load());
+        var next = new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), Load());
         await Assert.ThrowsAsync<IOException>(() => next.PrepareSessionAsync(() => throw new IOException()));
         Assert.IsTrue(Load().ResetSessionOnStartup);
         var removed = false;
@@ -157,7 +154,7 @@ public sealed class DatabaseConfigurationTests
         Directory.CreateDirectory(_paths.UserDirectory);
         await File.WriteAllTextAsync(_paths.SettingsFile, "{\"Other\":\"keep\",\"ConnectionStrings\":{\"FoodHub\":\"override\"}}");
         Write(Path.Combine(_root, "appsettings.json"), Local);
-        await new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), Load()).SaveAsync(null);
+        await new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), Load()).SaveAsync(null);
         Assert.AreEqual(Local, Load().ConnectionString);
         StringAssert.Contains(await File.ReadAllTextAsync(_paths.SettingsFile), "keep");
         Assert.IsTrue(Load().ResetSessionOnStartup);
@@ -176,7 +173,7 @@ public sealed class DatabaseConfigurationTests
     public async Task SettingsViewModelPersistsPendingFields()
     {
         var active = Load();
-        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active);
+        var store = new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), active);
         var tester = new DatabaseConnectionTester(NullLogger<DatabaseConnectionTester>.Instance);
         using var first = new DatabaseSettingsViewModel(active, store, tester, NullLogger<DatabaseSettingsViewModel>.Instance)
             { Server = "offline", Database = "FoodHub_Test", TrustCertificate = true };
@@ -214,7 +211,7 @@ public sealed class DatabaseConfigurationTests
     {
         await File.WriteAllTextAsync(_paths.UserDirectory, "A file blocks directory creation.");
         var active = Load();
-        var store = new DatabaseSettingsStore(new LocalStorageService(_paths.UserDirectory), active);
+        var store = new DatabaseSettingsStore(new LocalSettingsStore(new LocalStorageService(_paths.UserDirectory)), active);
         await Assert.ThrowsAsync<IOException>(() => store.SaveAsync(Local));
         Assert.IsFalse(store.RestartRequired);
         Assert.AreEqual("", active.ConnectionString);

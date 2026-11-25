@@ -39,6 +39,7 @@ See [local Graphify setup](docs/Graphify.md) for installation, MCP configuration
 
 The following guidance includes the approved account/migration decisions. Remaining ordering defaults are provisional and do not claim that those workflows are implemented:
 
+- General hosting/configuration belongs to FoodHub.Core.Hosting. Derive host environments from the consuming assembly’s build metadata (Debug → Development, Release → Production, custom names unchanged); do not use DOTNET_ENVIRONMENT. Load base JSON, environment JSON, then local JSON. Share one LocalSettingsStore for all JSON writers; appearance applies immediately and database changes require restart. Do not reintroduce legacy settings migration.
 - Use simple MVVM, thin page code-behind for view behavior, and application services for workflows. Keep WinUI types in `FoodHub`; keep database access and non-UI logic in `FoodHub.Core` for now.
 - Use asynchronous database operations, cancellation where appropriate, and a short-lived context per operation. Do not block the UI thread or share one context across concurrent operations.
 - EF Core migrations now own schema evolution; do not regenerate the maintained context/entities with EF Core Power Tools. Use the current InitialCreate migration and preserve procedure contracts. FoodHub_Dev is disposable; explicit local reset does not require backups. Use `PlaceOrder` and `UpdateOrderStatus` for order writes; use normal EF operations for profile/address edits. Do not duplicate order transactions in the UI.

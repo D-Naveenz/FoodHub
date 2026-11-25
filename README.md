@@ -30,10 +30,9 @@ An educational Foodhub-inspired WinUI 3 customer application backed by SQL Serve
 
 Use Windows, a compatible .NET SDK, Windows SDK, and Visual Studio WinUI/MSIX tooling. UI targets net10.0-windows10.0.26100.0; Core targets net10.0. EF SQL Server/design tools are 10.0.15. MVVM uses CommunityToolkit.Mvvm 8.4.2; password hashing uses Microsoft.Extensions.Identity.Core 10.0.0. Windows packages retain the existing floating references; the inspected restore resolves Windows App SDK 2.7.0.
 
-Debug builds load the local Windows-authentication connection from `appsettings.Development.json`; no shell environment variable is required. Release defaults to Production with an empty connection. Use **Settings → Database** to test and save a Windows-authentication connection, then restart. Follow the [database guide](docs/Database.md) for explicit migrate/reset commands. Local FoodHub_Dev data is disposable; reset drops and recreates it without a backup. Guest navigation and Settings remain available when configuration or SQL is unavailable.
+Debug builds load the local Windows-authentication connection from `appsettings.Development.json`; no shell environment variable is required. Release selects Production with an empty connection; custom build configurations select their own environment names. Environment selection is automatic from the consuming assembly’s build metadata; DOTNET_ENVIRONMENT is ignored. Use **Settings → Database** to test and save a Windows-authentication connection, then restart. Follow the [database guide](docs/Database.md) for explicit migrate/reset commands. Local FoodHub_Dev data is disposable; reset drops and recreates it without a backup. Guest navigation and Settings remain available when configuration or SQL is unavailable.
 
 ```powershell
-$env:FOODHUB_CONNECTION_STRING = 'Server=localhost;Database=FoodHub_Dev;Integrated Security=True;TrustServerCertificate=True'
 dotnet restore FoodHub.slnx -p:Platform=x64
 dotnet build FoodHub.slnx -p:Platform=x64 --no-restore
 ```
@@ -45,7 +44,7 @@ dotnet build FoodHub/FoodHub.csproj -p:Platform=x64 -p:WindowsPackageType=None
 & './FoodHub/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64/FoodHub.exe'
 ```
 
-The explicit Platform determines runtime architecture even with an ARM64 SDK. App data lives in package `ApplicationData.Current.LocalFolder` when packaged, or `%LOCALAPPDATA%/FoodHub` when unpackaged; no password or private profile cache is stored there. In Development, Settings shows the active path and opens it in File Explorer.
+The explicit Platform determines runtime architecture even with an ARM64 SDK. General settings, including appearance and database overrides, share local appsettings.json; database changes require restart while appearance applies immediately. Old theme.txt files are ignored without migration. See [hosting and settings](docs/Architecture.md#desktop-hosting-and-application-settings). App data lives in package `ApplicationData.Current.LocalFolder` when packaged, or `%LOCALAPPDATA%/FoodHub` when unpackaged; no password or private profile cache is stored there. In Development, Settings shows the active path and opens it in File Explorer.
 
 ## Verification
 

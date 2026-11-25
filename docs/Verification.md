@@ -1,5 +1,25 @@
 # Verification record — 2026-11-24
 
+## Desktop hosting and unified settings — 2026-11-25
+
+This section supersedes earlier environment-variable, theme.txt and legacy-import behavior below.
+
+Implemented Core's DesktopApplicationBuilder/IHostApplicationBuilder adapter, build-metadata environment selection, a general JSON configuration loader and one shared atomic local-settings writer. Base JSON → environment JSON → local JSON is the application precedence. DOTNET_ENVIRONMENT and application-setting environment overrides are ignored. Appearance now uses Appearance:Theme in general settings, applies immediately after a successful save and ignores theme.txt. Database connections remain immutable until restart, with remembered-token reset sequencing retained. Legacy imports and migration-only tests were removed; their historical verification below is no longer current behavior. Existing scaffold/copyright headers remain; path/provider explanations were moved out of database code and expanded in XML documentation.
+
+Checks performed:
+
+- Core, database tool and Debug/Release/Staging x64 WinUI app builds passed with zero warnings/errors. Both unpackaged and default packaged Debug build configurations compiled; this is not a claim of a fresh MSIX deployment.
+- EF design-time dbcontext info resolved the maintained SQL Server context, localhost and FoodHub_Dev from Debug defaults without opening SQL.
+- Core XML documentation generation passed with no documentation/reference warnings (existing unrelated missing-member documentation warnings were suppressed with NoWarn=1591 for this check).
+- Unpackaged x64 tests: **74 passed, zero failed, four skipped (78 total)**, including duplicate-key and invalid-root repair cases. Skips: actual packaged LocalFolder selection and three SQL integration tests requiring FOODHUB_TEST_CONNECTION_STRING. No SQL schema/data reset was performed for this refactor.
+- Native-window tests verify launch appearance ordering, cancellation, close/host lifetime and immediate appearance application to main/owned windows after persistence. JSON tests cover independent consumer build metadata, missing metadata, three-layer precedence, ignored environment variables, DI validation/disposal, concurrent feature saves, unrelated-key preservation, malformed-file repair, failed writes and session-reset retry.
+- Published the database tool through Debug → Release → Staging into the same artifacts/hosting-publish directory. Debug included base/Development JSON; Release and Staging included only base JSON. A reused Core output directory also removed Development JSON when switching Debug → Release. App output inspection matched these rules. No Staging JSON exists in the repository, so it correctly uses base defaults.
+- Manual unpackaged Debug UI: observed Guest startup, Settings populated from Development JSON, Development tools and the normal LocalAppData/FoodHub path. Selecting Light changed the window immediately; local JSON contained Appearance:Theme=Light. Restored the original System preference and closed normally with exit code 0.
+- The initial sandboxed manual run could not write its redirected app-data root; it showed safe save-failure feedback and closed with exit code 0. Repeating outside the filesystem sandbox verified normal persistence. Isolated native tests also verify failed persistence leaves the active theme unchanged.
+
+Remaining manual checks: fresh packaged deployment/LocalFolder behavior, database Save/Reset with a remembered authenticated session, and complete account/customer journeys. Existing automated snapshot/reset-marker tests cover the refactored logic; SQL integration and these complete journeys were not rerun here. The local code-only graph was refreshed; generated output remains ignored.
+
+
 ## Current host, storage, and development tooling verification
 
 Implemented constructor-built host composition with generated WinUI startup, MainWindowHostedService, package-aware ILocalStorageService, Core-owned JSON content, and Development-only local-folder access. The prior Baseline/Accounts migration chain, BaselineVerifier, backup/reference/adoption commands, and preservation-only tests were removed. The current schema starts with 20261124142837_InitialCreate and retains the maintained snapshot, SQL procedures, TVP, constraints, and required lookup rows.

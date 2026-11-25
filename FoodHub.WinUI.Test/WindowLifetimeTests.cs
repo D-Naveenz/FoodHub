@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using FoodHub.Core.Services;
 using FoodHub.Services;
 using Microsoft.Extensions.Hosting;
@@ -37,9 +38,12 @@ namespace FoodHub.WinUI.Test
         public Task StartsOnceAndStopsOnDispatcher() => OnDispatcher(async () =>
         {
             var directory = Path.Combine(Path.GetTempPath(), "FoodHub-window-test-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
             var storage = new LocalStorageService(directory);
-            await storage.WriteAsync("theme.txt", System.Text.Encoding.UTF8.GetBytes("Dark"));
-            var appearance = new AppearanceSettings(storage);
+            using var settings = new LocalSettingsStore(storage);
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+                { ["Appearance:Theme"] = "Dark" }).Build();
+            var appearance = new AppearanceSettings(configuration, settings);
             var lifetime = new LifetimeStub();
             var created = 0;
             var service = new MainWindowHostedService(() =>
@@ -64,11 +68,40 @@ namespace FoodHub.WinUI.Test
             }
             finally { service.Window.Close(); Directory.Delete(directory, recursive: true); }
         });
+        /// <summary>A successful appearance save updates both active windows and preserves database settings.</summary>
+        [TestMethod]
+        public Task AppearanceAppliesToCurrentWindowsAfterSave() => OnDispatcher(async () =>
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "FoodHub-appearance-test-" + Guid.NewGuid().ToString("N"));
+            var storage = new LocalStorageService(directory);
+            using var settings = new LocalSettingsStore(storage);
+            var appearance = new AppearanceSettings(new ConfigurationBuilder().Build(), settings);
+            var window = new MainWindow { AuthenticationWindow = new Window { Content = new TextBlock() } };
+            App.MainWindow = window;
+            try
+            {
+                await settings.UpdateAsync(json => json["ConnectionStrings"] = new System.Text.Json.Nodes.JsonObject { ["FoodHub"] = "keep" });
+                await appearance.SetThemeAsync(ElementTheme.Dark);
+                Assert.AreEqual(ElementTheme.Dark, ((FrameworkElement)window.Content).RequestedTheme);
+                Assert.AreEqual(ElementTheme.Dark, ((FrameworkElement)window.AuthenticationWindow.Content).RequestedTheme);
+                var json = System.Text.Json.Nodes.JsonNode.Parse((await storage.ReadAsync("appsettings.json"))!)!;
+                Assert.AreEqual("Dark", json["Appearance"]!["Theme"]!.GetValue<string>());
+                Assert.AreEqual("keep", json["ConnectionStrings"]!["FoodHub"]!.GetValue<string>());
+            }
+            finally
+            {
+                window.AuthenticationWindow.Close();
+                window.Close();
+                App.MainWindow = null!;
+                if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            }
+        });
         /// <summary>Cancellation before startup cannot allocate a native window.</summary>
         [TestMethod]
         public Task CancelledStartupCreatesNoWindow() => OnDispatcher(async () =>
         {
-            var appearance = new AppearanceSettings(new LocalStorageService(Path.Combine(Path.GetTempPath(), "FoodHub-no-files")));
+            using var settings = new LocalSettingsStore(new LocalStorageService(Path.Combine(Path.GetTempPath(), "FoodHub-no-files")));
+            var appearance = new AppearanceSettings(new ConfigurationBuilder().Build(), settings);
             var created = false;
             var service = new MainWindowHostedService(() => { created = true; return new MainWindow(); }, appearance, new LifetimeStub());
             using var cancelled = new CancellationTokenSource(); cancelled.Cancel();

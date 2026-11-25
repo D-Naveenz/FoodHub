@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <!-- Match DesktopEnvironment: custom MSBuild configurations keep their own environment names. -->
+    <FoodHubEnvironment>$(Configuration)</FoodHubEnvironment>
+    <FoodHubEnvironment Condition="'$(Configuration)' == 'Debug'">Development</FoodHubEnvironment>
+    <FoodHubEnvironment Condition="'$(Configuration)' == 'Release'">Production</FoodHubEnvironment>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'FoodHub.Core'">
+    <!-- Declare content once; project references propagate it to each executable and package. -->
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="appsettings.$(FoodHubEnvironment).json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+             Condition="Exists('appsettings.$(FoodHubEnvironment).json')" />
+  </ItemGroup>
+  <!-- A reused output/publish directory must not accidentally ship another profile's defaults.
+       Only environment settings in build artifacts are removed; local user settings are never touched. -->
+  <Target Name="RemoveStaleFoodHubEnvironmentSettings" BeforeTargets="PrepareForBuild;ComputeFilesToPublish">
+    <ItemGroup>
+      <_StaleFoodHubSettings Include="$(OutDir)appsettings.*.json" Exclude="$(OutDir)appsettings.$(FoodHubEnvironment).json" Condition="'$(OutDir)' != ''" />
+      <_StaleFoodHubSettings Include="$(PublishDir)appsettings.*.json" Exclude="$(PublishDir)appsettings.$(FoodHubEnvironment).json" Condition="'$(PublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_StaleFoodHubSettings)" />
+  </Target>
+</Project>

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added Core's custom desktop host builder with automatic build-configuration environments and detailed XML API documentation.
+- Separated general JSON configuration from database setup; appearance and database overrides now share one atomic local-settings writer.
+- Removed settings import/migration and application environment-variable overrides. Appearance applies immediately; database changes still require restart.
+
 ## 0.1.0 — 2026-11-24
 
 Initial development milestone:

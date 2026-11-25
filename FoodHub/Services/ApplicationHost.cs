@@ -1,9 +1,8 @@
+using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace FoodHub.Services;
 
@@ -15,33 +14,13 @@ public static class ApplicationHost
     {
         var runtime = new AppRuntimeEnvironment();
         var storage = WindowsLocalStorage.Create(runtime);
-        string? storageError = null;
-        if (runtime.IsPackaged)
+        var builder = DesktopApplication.CreateBuilder(new DesktopApplicationOptions(typeof(App).Assembly)
         {
-            try { LegacySettingsMigration.Import(new ApplicationPaths().UserDirectory, storage); }
-            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
-            { storageError = "Legacy settings could not be imported. Check access to local application storage."; }
-        }
-        var paths = new ApplicationPaths(userDirectory: storage.RootDirectory);
-        var (configuration, error) = DatabaseConfiguration.Load(paths, DatabaseConfiguration.EnvironmentName);
-        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
-        {
-            DisableDefaults = true,
-            ApplicationName = typeof(App).Assembly.GetName().Name,
-            EnvironmentName = DatabaseConfiguration.EnvironmentName,
-            ContentRootPath = paths.InstallDirectory
+            LocalStorage = storage
         });
-        builder.Configuration.AddConfiguration(configuration, shouldDisposeConfiguration: true);
-        builder.Logging.AddDebug();
-        builder.Services.AddSingleton(paths);
-        builder.Services.AddSingleton<ILocalStorageService>(storage);
-        builder.Services.AddSingleton(new DatabaseSettings(configuration, storageError ?? error));
-        builder.Services.AddSingleton<DatabaseSettingsStore>();
-        builder.Services.AddSingleton<DatabaseConnectionTester>();
+        builder.Services.AddFoodHubCore();
         builder.Services.AddSingleton<IAppRuntimeEnvironment>(runtime);
         builder.Services.AddSingleton<ILocalStorageFolderLauncher, LocalStorageFolderLauncher>();
-        builder.Services.AddSingleton<Func<FoodHub.Core.Models.FoodHub_DevContext>>(sp => sp.GetRequiredService<DatabaseSettings>().Open);
-        builder.Services.AddSingleton<AccountService>();
         builder.Services.AddSingleton<SessionStorage>();
         builder.Services.AddSingleton<SessionState>();
         builder.Services.AddSingleton<AppearanceSettings>();

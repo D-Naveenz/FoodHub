@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace FoodHub.Core.Services;
 
 /// <summary>Persists small application files independently of FoodHub accounts and Windows UI APIs.</summary>
@@ -63,39 +61,5 @@ public sealed class LocalStorageService : ILocalStorageService
         try { File.Delete(GetFilePath(fileName)); }
         catch (DirectoryNotFoundException) { /* Deleting an absent file is an idempotent operation. */ }
         return Task.CompletedTask;
-    }
-}
-
-/// <summary>Imports only legacy settings once; remembered authentication is never copied into packaged storage.</summary>
-public static class LegacySettingsMigration
-{
-    /// <summary>Copies missing settings before configuration is built; failures leave migration retryable.</summary>
-    public static void Import(string legacyDirectory, ILocalStorageService destination)
-    {
-        if (string.Equals(Path.GetFullPath(legacyDirectory), destination.RootDirectory, StringComparison.OrdinalIgnoreCase)) return;
-        var marker = destination.GetFilePath("settings-migrated.v1");
-        if (File.Exists(marker)) return;
-        Directory.CreateDirectory(destination.RootDirectory);
-        foreach (var fileName in new[] { "appsettings.json", "theme.txt" })
-        {
-            var source = Path.Combine(legacyDirectory, fileName);
-            var target = destination.GetFilePath(fileName);
-            if (!File.Exists(source) || File.Exists(target)) continue;
-            var temporary = target + ".migration.tmp";
-            try
-            {
-                File.Copy(source, temporary, overwrite: true);
-                File.Move(temporary, target, overwrite: false);
-            }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
-        }
-        // A marker prevents deleted/reset settings from being re-imported on later launches.
-        var markerTemporary = marker + ".tmp";
-        try
-        {
-            File.WriteAllText(markerTemporary, "Settings imported; authentication deliberately excluded.", Encoding.UTF8);
-            File.Move(markerTemporary, marker, overwrite: true);
-        }
-        finally { if (File.Exists(markerTemporary)) File.Delete(markerTemporary); }
     }
 }

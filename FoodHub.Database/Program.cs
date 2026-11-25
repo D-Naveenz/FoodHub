@@ -10,7 +10,8 @@ try
         Console.WriteLine("reset deletes localhost/FoodHub_Dev and all its data, then recreates the current schema. No backup or demo data is created.");
         return 2;
     }
-    var connection = DatabaseConfiguration.ConnectionString;
+    var settings = DatabaseConfiguration.LoadSettings(typeof(Program).Assembly);
+    var connection = settings.RequireConnectionString();
     if (args[0] == "reset")
     {
         DevelopmentDatabase.ValidateResetTarget(connection); // Validate before even opening a connection.
@@ -20,7 +21,7 @@ try
     }
     else
     {
-        await using var db = DatabaseConfiguration.Open();
+        await using var db = settings.Open();
         await db.Database.MigrateAsync();
         Console.WriteLine("Migrations applied. No demonstration data was loaded.");
     }

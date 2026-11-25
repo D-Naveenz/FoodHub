@@ -14,31 +14,25 @@ dotnet run --project FoodHub.Database -- migrate
 dotnet run --project FoodHub.Database -- reset
 ```
 
-The destructive command accepts only `Server=localhost;Database=FoodHub_Dev`; remote servers, other catalogs, attached files, and user-instance connections are rejected before opening SQL. Set FOODHUB_CONNECTION_STRING if the default Development connection is insufficient, and check any higher-priority per-user override. The reset creates no account or optional demonstration data. Optional fictional menu/customer/order data remains in Foodhub_Demo_Seed.sql for explicit use.
+The destructive command accepts only `Server=localhost;Database=FoodHub_Dev`; remote servers, other catalogs, attached files, and user-instance connections are rejected before opening SQL. If the default Development connection is insufficient, edit the local appsettings.json in the unpackaged storage root; check this override before running a command. The reset creates no account or optional demonstration data. Optional fictional menu/customer/order data remains in Foodhub_Demo_Seed.sql for explicit use.
 
 The old Baseline/Accounts chain, reference-database comparisons, backup/adoption commands, and manual migration-history insertion were removed. EF still maintains __EFMigrationsHistory automatically. After replacing the initial chain, reset the existing development database once. Do not manually remove history rows while retaining old tables. Future small changes can use ordinary migrations; destructive development rebuilds remain an explicit choice.
 
 The app and Test Connection never migrate or reset a database. Production upgrade/backups are outside this project's current scope. The historical SQL creation document is not a second current schema authority. Existing archived backups/reference databases are not automatically deleted by this change.
 
-## Configuration ownership and precedence
+## Database configuration
 
-Both appsettings.json and appsettings.Development.json live in FoodHub.Core. Their Content metadata is declared once in Core and copied transitively to executable outputs through project references. Production has an empty connection; Debug defaults to Development with localhost/FoodHub_Dev, Windows authentication and local certificate trust. Development content is excluded from Release output and from published output. No SQL password is tracked.
+General configuration loading belongs to Core's desktop hosting infrastructure, not the database adapter. See [desktop hosting and application settings](Architecture.md#desktop-hosting-and-application-settings) for ownership, build environments, JSON precedence and output rules.
 
-The host is built in App.App() using AppContext.BaseDirectory, independent of the working directory. DOTNET_ENVIRONMENT can override the Debug=Development / Release=Production default. Providers, lowest to highest priority:
+DatabaseSettings captures the effective ConnectionStrings:FoodHub value for one launch. DatabaseConfiguration adapts that shared loader to EF design-time tools and parameterless contexts; it does not define JSON providers. Administration commands explicitly load a snapshot using their executable assembly. EF design-time creation uses the factory assembly. Explicit DbContextOptions continue to take precedence.
 
-1. Bundled appsettings.json.
-2. Bundled appsettings.{Environment}.json.
-3. Standard environment variables such as ConnectionStrings__FoodHub.
-4. FOODHUB_CONNECTION_STRING compatibility alias.
-5. appsettings.json in the active writable storage root.
-
-The UI uses package LocalFolder when packaged and %LOCALAPPDATA%/FoodHub otherwise. Console/EF tools are unpackaged and use the latter root, so packaged GUI overrides are deliberately separate from command-line tool overrides. Windows.Storage APIs stay in the UI project; Core shares the JSON/environment loader and filesystem persistence code.
+The UI uses package LocalFolder when packaged and %LOCALAPPDATA%/FoodHub otherwise. Console/EF tools use the unpackaged root, so packaged GUI overrides remain separate from tool overrides. Database commands never construct a UI host.
 
 ## Settings and persistence
 
 Settings → Database accepts Windows-authentication server/database fields and certificate trust. Test Connection checks a candidate with bounded SQL timeouts and cancellation, including required migration history, without saving or changing SQL. Save writes valid settings atomically even if the server is offline; Use default configuration removes only the user connection override. Both require restart and request remembered-token removal before restoration on the next launch. Existing operations use an immutable launch snapshot.
 
-Configuration is distinct from authentication: appsettings.json stores configuration, theme.txt stores appearance, and session.dat contains only Windows-user-encrypted token bytes. No FoodHub account switch changes the storage root. Packaged upgrades import legacy database/appearance files once without overwriting newer destination files; encrypted legacy tokens remain untouched and are not imported. A completion marker prevents deleted settings from being re-imported later.
+General local appsettings.json stores database overrides, Appearance:Theme and the durable session-reset marker. All feature writers share LocalSettingsStore, preserving unrelated values. session.dat contains only Windows-user-encrypted token bytes. No account switch changes the storage root. Legacy imports and markers have been removed; theme.txt is ignored without migration. Obsolete files are left untouched.
 
 In Development, Settings shows the actual local storage path and an Open local storage folder button. It opens the active service root in File Explorer in either deployment mode; it never changes settings. The whole section and its command are disabled outside IHostEnvironment.IsDevelopment(), independently of Debug/Release and package identity.
 
