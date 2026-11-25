@@ -4,20 +4,23 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Dhara Libraries/">
+    <Project Path="Dhara/Dhara.Extensions.WinUI/Dhara.Extensions.WinUI.csproj" Id="e287004a-9550-4bf4-97ce-49871ed8eb10" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="LICENSE.txt" />
     <File Path="README.md" />
   </Folder>
   <Project Path="FoodHub.Core/FoodHub.Core.csproj" Id="8d1556f3-751b-4caa-a945-8ccb10296bef" />
-  <Project Path="FoodHub/FoodHub.csproj">
+  <Project Path="FoodHub.Database/FoodHub.Database.csproj" />
+  <Project Path="FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
-  <Project Path="FoodHub.Database/FoodHub.Database.csproj" />
-  <Project Path="FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj">
+  <Project Path="FoodHub/FoodHub.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|x86" Project="x86" />
