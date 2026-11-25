@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Extracted reusable WinUI hosting, lifecycle, storage paths, dispatcher, theme and native window helpers into Dhara.Extensions.WinUI with a thin App launch bridge. Core/tooling remain Windows-independent; publishing is deferred.
+
 - Added Core's custom desktop host builder with automatic build-configuration environments and detailed XML API documentation.
 - Separated general JSON configuration from database setup; appearance and database overrides now share one atomic local-settings writer.
 - Removed settings import/migration and application environment-variable overrides. Appearance applies immediately; database changes still require restart.

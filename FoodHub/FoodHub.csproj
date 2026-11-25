@@ -68,6 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FoodHub.Core\FoodHub.Core.csproj" />
+    <ProjectReference Include="..\Dhara\Dhara.Extensions.WinUI\Dhara.Extensions.WinUI.csproj" />
   </ItemGroup>
 
   <!--

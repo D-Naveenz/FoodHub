@@ -22,7 +22,7 @@ The app and Test Connection never migrate or reset a database. Production upgrad
 
 ## Database configuration
 
-General configuration loading belongs to Core's desktop hosting infrastructure, not the database adapter. See [desktop hosting and application settings](Architecture.md#desktop-hosting-and-application-settings) for ownership, build environments, JSON precedence and output rules.
+The UI uses Dhara’s reusable WinUI host configuration; Core retains a portable loader for administration/EF tooling. Configuration loading is separate from the database adapter. See [desktop hosting and application settings](Architecture.md#desktop-hosting-and-application-settings) for ownership, build environments, JSON precedence and output rules.
 
 DatabaseSettings captures the effective ConnectionStrings:FoodHub value for one launch. DatabaseConfiguration adapts that shared loader to EF design-time tools and parameterless contexts; it does not define JSON providers. Administration commands explicitly load a snapshot using their executable assembly. EF design-time creation uses the factory assembly. Explicit DbContextOptions continue to take precedence.
 

@@ -1,3 +1,7 @@
+using Dhara.Extensions.WinUI.Hosting;
+using Dhara.Extensions.WinUI.Threading;
+using Dhara.Extensions.WinUI.Windowing;
+using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Reflection;
 using System.Reflection.Emit;
 using FoodHub.Core.Hosting;
@@ -13,6 +17,7 @@ namespace FoodHub.WinUI.Test;
 /// <summary>Checks desktop conventions against real host builders and isolated JSON files without SQL.</summary>
 [TestClass]
 [TestCategory("Unit")]
+[DoNotParallelize]
 public sealed class DesktopHostingTests
 {
     private string _root = "";
@@ -41,8 +46,21 @@ public sealed class DesktopHostingTests
     }
 
     /// <summary>Creates a real desktop builder with a deliberately separate consumer assembly and storage root.</summary>
-    private DesktopApplicationBuilder Builder(string configuration) => DesktopApplication.CreateBuilder(
-        new DesktopApplicationOptions(Consumer(configuration)) { ContentRootPath = _root, LocalStorage = _storage });
+    private WinUIApplicationBuilder Builder(string configuration)
+    {
+        var builder = WinUIApplication.CreateBuilder(Application.Current, new WinUIApplicationOptions
+        {
+            ApplicationDataName = "Dhara.Tests",
+            ApplicationAssembly = Consumer(configuration),
+            ContentRootPath = _root,
+            LocalStorageRoot = _storage.RootDirectory,
+            Dispatcher = new UIThreadDispatcher(UITestMethodAttribute.DispatcherQueue!)
+        });
+        builder.Services.AddSingleton<ILocalStorageService>(_storage);
+        builder.Services.AddSingleton<LocalSettingsStore>();
+        builder.Services.AddSingleton(sp => new ApplicationConfigurationStatus(sp.GetRequiredService<WinUIConfigurationStatus>().Error));
+        return builder;
+    }
 
     /// <summary>Standard profiles map to host conventions; custom profiles retain their identity.</summary>
     [TestMethod]
@@ -61,8 +79,67 @@ public sealed class DesktopHostingTests
     [TestMethod]
     public void MissingOrUnsafeMetadataFailsClearly()
     {
-        Assert.Throws<InvalidOperationException>(() => DesktopEnvironment.Resolve(Consumer(null)));
-        Assert.Throws<InvalidOperationException>(() => DesktopEnvironment.Resolve(Consumer("../outside")));
+        Assert.Throws<InvalidOperationException>(() => WinUIEnvironment.Resolve(Consumer(null)));
+        Assert.Throws<InvalidOperationException>(() => WinUIEnvironment.Resolve(Consumer("../outside")));
+    }
+
+    /// <summary>The Windows host and portable tool loader select the same profile names and effective JSON values.</summary>
+    [TestMethod]
+    [DataRow("Debug", "Development")]
+    [DataRow("Release", "Production")]
+    [DataRow("Staging", "Staging")]
+    public async Task ToolAndWinUIConfigurationContractsMatch(string profile, string environment)
+    {
+        await File.WriteAllTextAsync(Path.Combine(_root, "appsettings.json"), "{\"Appearance\":{\"Theme\":\"System\"},\"Other\":\"base\"}");
+        await File.WriteAllTextAsync(Path.Combine(_root, $"appsettings.{environment}.json"), "{\"Appearance\":{\"Theme\":\"Dark\"}}");
+        await _storage.WriteAsync("appsettings.json", "{\"Other\":\"local\"}"u8.ToArray());
+        using var host = Builder(profile).Build();
+        var (portable, error) = ApplicationConfiguration.Load(new ApplicationPaths(_root, _storage.RootDirectory), environment);
+        using (portable as IDisposable)
+        {
+            Assert.IsNull(error);
+            Assert.AreEqual(DesktopEnvironment.Resolve(Consumer(profile)), host.Services.GetRequiredService<IHostEnvironment>().EnvironmentName);
+            var windows = host.Services.GetRequiredService<IConfiguration>();
+            Assert.AreEqual(portable["Appearance:Theme"], windows["Appearance:Theme"]);
+            Assert.AreEqual(portable["Other"], windows["Other"]);
+        }
+    }
+
+    /// <summary>Both consumers reject malformed/duplicate settings rather than using defaults from another layer.</summary>
+    [TestMethod]
+    [DataRow("{ broken")]
+    [DataRow("{\"Other\":1,\"other\":2}")]
+    [DataRow("[]")]
+    public async Task ToolAndWinUIConfigurationFailuresMatch(string malformed)
+    {
+        await File.WriteAllTextAsync(Path.Combine(_root, "appsettings.json"), "{\"Other\":\"must not fall through\"}");
+        await _storage.WriteAsync("appsettings.json", System.Text.Encoding.UTF8.GetBytes(malformed));
+        using var host = Builder("Release").Build();
+        var (portable, error) = ApplicationConfiguration.Load(new ApplicationPaths(_root, _storage.RootDirectory), "Production");
+        using (portable as IDisposable)
+        {
+            Assert.IsNotNull(error);
+            Assert.IsNotNull(host.Services.GetRequiredService<WinUIConfigurationStatus>().Error);
+            Assert.IsNull(host.Services.GetRequiredService<IConfiguration>()["Other"]);
+            Assert.IsNull(portable["Other"]);
+        }
+    }
+
+    /// <summary>Process environment values cannot change the WinUI profile or override bundled application defaults.</summary>
+    [TestMethod]
+    public async Task WinUIConfigurationIgnoresProcessOverrides()
+    {
+        var names = new[] { "DOTNET_ENVIRONMENT", "ConnectionStrings__FoodHub", "FOODHUB_CONNECTION_STRING" };
+        var previous = names.ToDictionary(x => x, Environment.GetEnvironmentVariable);
+        try
+        {
+            foreach (var name in names) Environment.SetEnvironmentVariable(name, "Ignored");
+            await File.WriteAllTextAsync(Path.Combine(_root, "appsettings.Development.json"), "{\"ConnectionStrings\":{\"FoodHub\":\"bundled\"}}");
+            using var host = Builder("Debug").Build();
+            Assert.AreEqual("Development", host.Services.GetRequiredService<IHostEnvironment>().EnvironmentName);
+            Assert.AreEqual("bundled", host.Services.GetRequiredService<IConfiguration>().GetConnectionString("FoodHub"));
+        }
+        finally { foreach (var value in previous) Environment.SetEnvironmentVariable(value.Key, value.Value); }
     }
 
     /// <summary>Configuration and service APIs stay customizable, and host disposal releases registered resources.</summary>
@@ -157,18 +234,19 @@ public sealed class DesktopHostingTests
 
     /// <summary>Appearance reads the launch snapshot, ignores theme.txt, and changes state only after a successful save.</summary>
     [TestMethod]
-    public async Task AppearanceUsesJsonAndPreservesStateOnFailure()
+    public Task AppearanceUsesJsonAndPreservesStateOnFailure() => WinUITestSupport.OnDispatcher(async () =>
     {
         await _storage.WriteAsync("theme.txt", "Dark"u8.ToArray());
         using var settings = new LocalSettingsStore(_storage);
         var appearance = new AppearanceSettings(new ConfigurationBuilder().AddInMemoryCollection(
-            new Dictionary<string, string?> { ["Appearance:Theme"] = "Light" }).Build(), settings);
+            new Dictionary<string, string?> { ["Appearance:Theme"] = "Light" }).Build(), settings,
+            new WindowThemeService(new WindowRegistry(WinUITestSupport.Dispatcher), WinUITestSupport.Dispatcher));
         await appearance.LoadAsync();
         Assert.AreEqual(ElementTheme.Light, appearance.Theme);
         await _storage.WriteAsync("appsettings.json", "{ broken"u8.ToArray());
         await Assert.ThrowsAsync<IOException>(() => appearance.SetThemeAsync(ElementTheme.Dark));
         Assert.AreEqual(ElementTheme.Light, appearance.Theme);
-    }
+    });
 
     /// <summary>A resource whose lifetime is observable without touching application data.</summary>
     private sealed class DisposalProbe : IDisposable

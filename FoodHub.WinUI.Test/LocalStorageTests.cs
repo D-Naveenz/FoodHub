@@ -1,3 +1,5 @@
+using Dhara.Extensions.WinUI;
+using Dhara.Extensions.WinUI.Storage;
 using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.Services;
@@ -63,7 +65,7 @@ public sealed class LocalStorageTests
     [TestMethod]
     public void UnpackagedStorageUsesAppData()
     {
-        var selected = WindowsLocalStorage.Create(new RuntimeStub(false));
+        var selected = new ApplicationDataPaths("FoodHub", new RuntimeStub(false));
         Assert.AreEqual(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FoodHub"), selected.RootDirectory);
     }
     /// <summary>Packaged selection resolves LocalFolder in an actual packaged test run.</summary>
@@ -71,7 +73,7 @@ public sealed class LocalStorageTests
     public void PackagedStorageUsesLocalFolderWhenAvailable()
     {
         if (!new AppRuntimeEnvironment().IsPackaged) { Assert.Inconclusive("Run the packaged test profile for the actual package LocalFolder check."); return; }
-        Assert.AreEqual(Windows.Storage.ApplicationData.Current.LocalFolder.Path, WindowsLocalStorage.Create(new RuntimeStub(true)).RootDirectory);
+        Assert.AreEqual(Windows.Storage.ApplicationData.Current.LocalFolder.Path, new ApplicationDataPaths("FoodHub", new RuntimeStub(true)).RootDirectory);
     }
     private sealed record RuntimeStub(bool IsPackaged) : IAppRuntimeEnvironment;
 }

@@ -1,3 +1,5 @@
+using Dhara.Extensions.WinUI.Hosting;
+using Dhara.Extensions.WinUI.Storage;
 using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.ViewModels;
@@ -9,27 +11,25 @@ namespace FoodHub.Services;
 /// <summary>Builds the application's one service provider; UI services are first resolved on the dispatcher.</summary>
 public static class ApplicationHost
 {
-    /// <summary>Creates the host with the same configuration rules as EF and administration tools.</summary>
-    public static IHost Build()
+    /// <summary>Connects Dhara's reusable WinUI infrastructure to FoodHub's domain services.</summary>
+    /// <param name="application">The existing App instance created by WinUI's generated entry point.</param>
+    /// <returns>The host whose startup and disposal are owned by Dhara's application lifetime controller.</returns>
+    public static IHost Build(App application)
     {
-        var runtime = new AppRuntimeEnvironment();
-        var storage = WindowsLocalStorage.Create(runtime);
-        var builder = DesktopApplication.CreateBuilder(new DesktopApplicationOptions(typeof(App).Assembly)
-        {
-            LocalStorage = storage
-        });
+        var builder = WinUIApplication.CreateBuilder(application, new WinUIApplicationOptions { ApplicationDataName = "FoodHub" });
+        builder.UseWinUIApplication<MainWindow>();
+        // Adapt reusable Windows paths/status to Core contracts without giving Core a Windows dependency.
+        builder.Services.AddSingleton(sp => new ApplicationPaths(
+            sp.GetRequiredService<ApplicationDataPaths>().ContentRoot, sp.GetRequiredService<ApplicationDataPaths>().RootDirectory));
+        builder.Services.AddSingleton<ILocalStorageService>(sp => new LocalStorageService(sp.GetRequiredService<ApplicationDataPaths>().RootDirectory));
+        builder.Services.AddSingleton(sp => new ApplicationConfigurationStatus(sp.GetRequiredService<WinUIConfigurationStatus>().Error));
+        builder.Services.AddSingleton<LocalSettingsStore>();
         builder.Services.AddFoodHubCore();
-        builder.Services.AddSingleton<IAppRuntimeEnvironment>(runtime);
-        builder.Services.AddSingleton<ILocalStorageFolderLauncher, LocalStorageFolderLauncher>();
+        builder.Services.AddSingleton<IWinUIStartupParticipant, FoodHubStartupParticipant>();
         builder.Services.AddSingleton<SessionStorage>();
         builder.Services.AddSingleton<SessionState>();
         builder.Services.AddSingleton<AppearanceSettings>();
         builder.Services.AddSingleton<ViewModelFactory>();
-        builder.Services.AddSingleton<MainWindow>();
-        builder.Services.AddSingleton<Func<MainWindow>>(sp => sp.GetRequiredService<MainWindow>);
-        builder.Services.AddSingleton<MainWindowHostedService>();
-        builder.Services.AddSingleton<IMainWindowService>(sp => sp.GetRequiredService<MainWindowHostedService>());
-        builder.Services.AddHostedService(sp => sp.GetRequiredService<MainWindowHostedService>());
         return builder.Build();
     }
 }

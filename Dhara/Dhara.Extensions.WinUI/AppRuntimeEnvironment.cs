@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Hosting;
 
-namespace FoodHub.Services;
+namespace Dhara.Extensions.WinUI;
 
 /// <summary>Reports deployment identity separately from build configuration and host environment.</summary>
 public interface IAppRuntimeEnvironment

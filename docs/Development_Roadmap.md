@@ -24,3 +24,5 @@ Exercise the complete GUI account journey, remembered-token restart, image picke
 The implemented infrastructure now keeps generated startup, constructor-built host composition, a hosted main-window lifecycle, package-aware local storage, Development-only Explorer access, and one initial EF migration with explicit disposable-development reset. These changes do not implement deferred ordering pages.
 
 The desktop host now uses a custom Core builder, automatic build-profile environments and a shared JSON settings writer. Appearance applies immediately; database configuration remains restart-only. Legacy settings imports are removed. See Architecture for the public builder API and configuration ownership.
+
+Reusable Windows hosting and helpers now live in Dhara.Extensions.WinUI. FoodHub remains the application composition/domain layer; Core and database tooling remain Windows-independent. Dhara publication and background/tray operation are deferred.

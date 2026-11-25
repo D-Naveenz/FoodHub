@@ -1,3 +1,4 @@
+using Dhara.Extensions.WinUI.Windowing;
 using FoodHub.Services;
 using FoodHub.ViewModels;
 using FoodHub.Pages.Account;
@@ -28,15 +29,8 @@ public sealed partial class AuthenticationWindow : Window
         ViewModel.PropertyChanged += FormChanged;
         Closed += (_, _) => { ViewModel.PropertyChanged -= FormChanged; ViewModel.Dispose(); };
         NavigateForm(animate: false);
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        NativeWindows.SetOwner(hwnd, WinRT.Interop.WindowNative.GetWindowHandle(owner));
-        var area = DisplayArea.GetFromWindowId(owner.AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-        var scale = NativeWindows.GetDpiForWindow(hwnd) / 96.0;
-        var width = Math.Min((int)(900 * scale), area.Width);
-        var height = Math.Min((int)(600 * scale), area.Height);
-        var position = owner.AppWindow.Position; var size = owner.AppWindow.Size;
-        AppWindow.MoveAndResize(new RectInt32(Math.Clamp(position.X + (size.Width - width) / 2, area.X, area.X + area.Width - width),
-            Math.Clamp(position.Y + (size.Height - height) / 2, area.Y, area.Y + area.Height - height), width, height));
+        this.SetOwner(owner);
+        this.CenterOnOwner(owner, 900, 600);
         if (AppWindow.Presenter is OverlappedPresenter presenter) presenter.IsMaximizable = false;
     }
 

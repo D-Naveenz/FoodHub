@@ -1,5 +1,24 @@
 # Verification record — 2026-11-24
 
+## Dhara WinUI infrastructure extraction — 2026-11-25
+
+This section supersedes earlier Core-owned host-builder/window-helper implementations. General WinUI hosting now lives in Dhara.Extensions.WinUI.Hosting, independently of FoodHub. Core retains portable configuration/storage and service registration; the full Hosting package is referenced by Dhara while Core references Hosting.Abstractions and Configuration.Json. No schema changes, settings migrations or NuGet publication were performed.
+
+Checks performed:
+
+- Independent Dhara Debug/Staging builds passed with XML documentation generation enabled and zero warnings/errors. The complete x64 solution build, including the default packaged app/test build path, passed with zero warnings/errors. FoodHub's unpackaged Debug, Release and Staging builds and the portable database-tool build also passed.
+- Unpackaged x64 test run: **92 passed, zero failed, four skipped (96 total)**. The actual packaged LocalFolder test and three SQL integration tests were skipped because their prerequisites were not present. No SQL integration/reset command was executed for this extraction.
+- Native lifecycle tests now use the real Dhara assembly, the existing test Application, and plain windows without a fake FoodHub.App or copied library implementations. They cover ordered/duplicate startup, real BackgroundService cancellation, worker-originated stop, programmatic Window.Close, native WM_CLOSE, secondary-window cleanup, cancelled/failed startup, close during startup, service-stop exceptions/timeouts, host disposal and final registry removal.
+- Dispatcher tests cover worker-to-UI asynchronous callbacks, affinity after await, callback errors, cancellation before execution, cancellation while queued, and rejected work after a dedicated test queue shuts down. Generic dependency inspection confirms Dhara references no FoodHub assembly.
+- Contract tests compare WinUI and portable tooling profile selection, JSON precedence and malformed/duplicate/root-shape failures. Application environment variables remain ignored. Existing persistence, immutable database snapshot, session reset, account rules and Windows-protected session tests remain in the suite.
+- Native helper tests verify window owner HWND, input disable/re-enable, monitor-bounded sizing and WinRT picker owner initialization without displaying a picker. Appearance tests verify successful persistence updates both registered windows and preserves unrelated database JSON.
+- EF design-time dbcontext info resolved the SQL Server context, localhost and FoodHub_Dev without opening SQL after Core's package references were reduced. App output inspection confirmed Development JSON in Debug and no Development JSON in Release.
+- Manual unpackaged Debug run outside the filesystem sandbox: Guest startup and Settings worked, Development tools showed the normal LocalAppData/FoodHub root, Light applied immediately, and local JSON contained Appearance:Theme=Light. Restored the original System preference and closed the main window; the process exited with code 0.
+
+Remaining manual checks: fresh packaged deployment/actual package LocalFolder behavior, the complete authentication-window/customer journey and shutdown while that account window is open, and unusual multi-monitor/DPI arrangements. Native generic ownership/secondary-window shutdown tests do not claim those complete application journeys. Existing package identity and storage paths are preserved; the library does not grant identity or own runtime deployment.
+
+The old NativeWindows and window-host comments were relocated/replaced with documented generic responsibilities in Dhara. The placeholder Class1 and duplicate application implementations were removed. Existing scaffold/copyright comments remain. Library APIs have XML summaries, lifecycle/threading remarks, parameters, returns, exceptions and examples; the library README explains usage, ownership and deferred publication. Local code-only graph output is refreshed and remains ignored.
+
 ## Desktop hosting and unified settings — 2026-11-25
 
 This section supersedes earlier environment-variable, theme.txt and legacy-import behavior below.

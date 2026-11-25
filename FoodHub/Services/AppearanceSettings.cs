@@ -1,3 +1,4 @@
+using Dhara.Extensions.WinUI.Windowing;
 using FoodHub.Core.Services;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json.Nodes;
@@ -10,16 +11,19 @@ public sealed class AppearanceSettings
 {
     private readonly LocalSettingsStore _settings;
     private readonly IConfiguration _configuration;
+    private readonly WindowThemeService _themes;
     /// <summary>Selected theme; System is represented by Default.</summary>
     public ElementTheme Theme { get; private set; } = ElementTheme.Default;
 
     /// <summary>Captures the general configuration and shared writer without performing I/O.</summary>
     /// <param name="configuration">The effective launch configuration, including bundled appearance defaults.</param>
+    /// <param name="themes">Reusable runtime theme application; persistence remains in FoodHub.</param>
     /// <param name="settings">The same writer used by database settings, preventing lost concurrent edits.</param>
-    public AppearanceSettings(IConfiguration configuration, LocalSettingsStore settings)
+    public AppearanceSettings(IConfiguration configuration, LocalSettingsStore settings, WindowThemeService themes)
     {
         _configuration = configuration;
         _settings = settings;
+        _themes = themes;
     }
 
     /// <summary>Loads a known value before the first window is constructed; invalid data falls back to System.</summary>
@@ -34,6 +38,7 @@ public sealed class AppearanceSettings
             "Dark" => ElementTheme.Dark,
             _ => ElementTheme.Default
         };
+        _themes.SetTheme(Theme);
         return Task.CompletedTask;
     }
 
@@ -53,14 +58,13 @@ public sealed class AppearanceSettings
         });
         // Failed persistence leaves both the selected theme and existing windows unchanged.
         Theme = theme;
-        Apply(App.MainWindow);
-        if (App.MainWindow.AuthenticationWindow is { } window) Apply(window);
+        _themes.SetTheme(theme);
     }
 
     /// <summary>Applies the current setting to the root element of a new window.</summary>
     /// <param name="window">The native window whose content should receive the current theme.</param>
     public void Apply(Window window)
     {
-        if (window.Content is FrameworkElement root) root.RequestedTheme = Theme;
+        _themes.Apply(window);
     }
 }
