@@ -4,17 +4,30 @@
 
 FoodHub_Dev is disposable fictional development data. EF Core migrations own schema evolution. The maintained model and snapshot have one starting migration, `InitialCreate`, which creates tables, keys, indexes, named defaults, checks, computed values, account/session mappings, required order statuses, and the single store-settings row. `Migrations/Sql/OrderProcedures.sql` supplies the BasketItemList TVP and the two order procedures in separate GO-delimited batches.
 
-The tool has two commands:
+PowerShell 7.4+ scripts replace the FoodHub.Database executable. Run from the repository root:
 
 ```powershell
 # Apply pending migrations; repeat execution preserves current rows.
-dotnet run --project FoodHub.Database -- migrate
+./scripts/Invoke-Database.ps1 Migrate
 
-# Delete all local development rows and recreate the current schema. No backup or extra prompt.
-dotnet run --project FoodHub.Database -- reset
+# Preview without restoring tools, building, or opening SQL.
+./scripts/Invoke-Database.ps1 Reset -WhatIf
+
+# Delete localhost/FoodHub_Dev and rebuild the current schema. No backup or extra prompt.
+./scripts/Invoke-Database.ps1 Reset
+
+# Inspect context configuration without opening SQL.
+./scripts/Invoke-Database.ps1 Info
+
+# Generate reviewable idempotent SQL; do not execute it.
+./scripts/Invoke-Database.ps1 Script -OutputPath ./artifacts/database.sql
 ```
 
-The destructive command accepts only `Server=localhost;Database=FoodHub_Dev`; remote servers, other catalogs, attached files, and user-instance connections are rejected before opening SQL. If the default Development connection is insufficient, save a runtime override using an unpackaged FoodHub instance, or edit the executable-owned bundled defaults externally before running a command. Packaged FoodHub preferences belong to a separate identity. The reset creates no account or optional demonstration data. Optional fictional menu/customer/order data remains in Foodhub_Demo_Seed.sql for explicit use.
+The script restores the repository's pinned dotnet-ef 10.0.15 local tool and builds Core once before executing EF commands. Use -NoRestore and/or -NoBuild when those prerequisites are already current. -Configuration selects the Core build (Debug by default), not a different database. Script paths are resolved independently of the current directory; an explicit relative OutputPath is resolved from the caller's directory. -WhatIf stops before any restore, build, file creation or SQL command.
+
+Server defaults to localhost and Database to FoodHub_Dev, with Windows authentication and development certificate trust. For example, `./scripts/Invoke-Database.ps1 Migrate -Server localhost -Database AnotherDevelopmentDatabase` explicitly targets another development catalog. The script does not read appsettings or the application's native user preferences. Choose the same target explicitly in the application when needed; automation never changes runtime settings.
+
+Reset accepts only the exact localhost/FoodHub_Dev target. Both the script and the Core design-time factory validate before SQL is opened. Reset runs EF database drop --force followed by database update, stops on the first failed command, and creates no optional demonstration data. -Confirm is available when wanted; no extra prompt is required for an explicit Reset. Optional fictional menu/customer/order data remains in Foodhub_Demo_Seed.sql for deliberate use.
 
 The old Baseline/Accounts chain, reference-database comparisons, backup/adoption commands, and manual migration-history insertion were removed. EF still maintains __EFMigrationsHistory automatically. After replacing the initial chain, reset the existing development database once. Do not manually remove history rows while retaining old tables. Future small changes can use ordinary migrations; destructive development rebuilds remain an explicit choice.
 
@@ -22,11 +35,11 @@ The app and Test Connection never migrate or reset a database. Production upgrad
 
 ## Database configuration
 
-The UI, administration executable and EF factory all use Dhara’s shared configuration loader and native runtime settings. Core and tooling target Windows. The database project sets DharaAppSettingsDirectory to FoodHub and imports Dhara’s generic build targets to copy its selected defaults. Configuration loading is separate from the database adapter. See [desktop hosting and application settings](Architecture.md#desktop-hosting-and-application-settings) for ownership, build environments, JSON precedence and output rules.
+The application uses Dhara's shared host-file loader and native runtime preferences. DatabaseSettings captures the effective connection once per launch; DatabaseConfiguration retains the parameterless runtime-context fallback. Explicit DbContextOptions take precedence.
 
-DatabaseSettings captures the effective ConnectionStrings:FoodHub value for one launch. DatabaseConfiguration adapts that shared loader to EF design-time tools and parameterless contexts; it does not define JSON providers. Administration commands explicitly load a snapshot using their executable assembly. EF design-time creation uses the factory assembly. Explicit DbContextOptions continue to take precedence.
+EF automation uses FoodHub.Core directly as both target and startup project. A small FoodHubDesignTimeContextFactory builds options from --server/--database arguments after EF's -- separator; no arguments mean localhost/FoodHub_Dev. It never initializes native storage or XAML, and the --reset flag enforces the existing approved-target guard. Core generates runtime configuration files and copies its managed dependencies so EF can host the library without a separate executable. The former console program, Windows activation-context P/Invokes and native resource-directory workaround were removed.
 
-Packaged FoodHub uses its package data identity. Unpackaged FoodHub, console and EF tools use publisher dashe/product FoodHub, sharing native RuntimeSettings and the %LOCALAPPDATA%/dashe/FoodHub file root. Packaged GUI overrides remain separate. Database commands initialize the native runtime without constructing a UI host or window. The EF factory temporarily activates the startup executable’s manifest and resource directory in EF’s process.
+Application JSON/build-profile selection and packaged/unpackaged preferences remain unchanged. Automation has explicit development targets rather than inheriting per-user application settings; no script writes host JSON or migrates old preferences. See [desktop hosting and settings](Architecture.md#desktop-hosting-and-application-settings).
 
 ## Settings and persistence
 
@@ -41,8 +54,9 @@ Invalid native database values block fallback and can be explicitly repaired thr
 ## Adding a migration
 
 ```powershell
-./.tools/dotnet-ef migrations add DescriptiveChange --project FoodHub.Core --startup-project FoodHub.Database
-./.tools/dotnet-ef migrations script --project FoodHub.Core --startup-project FoodHub.Database
+dotnet tool restore
+dotnet ef migrations add DescriptiveChange --project FoodHub.Core --startup-project FoodHub.Core
+dotnet ef migrations script --project FoodHub.Core --startup-project FoodHub.Core
 ```
 
 Review generated changes and keep custom procedure SQL consistent. Do not use EnsureCreated with migrations. Scaffold provenance headers remain, but entities/context are maintained by hand rather than regenerated by EF Power Tools.
@@ -52,3 +66,9 @@ Review generated changes and keep custom procedure SQL consistent. Do not use En
 PlaceOrder(CustomerId, CustomerAddressId, BasketItemList, OrderId OUTPUT) validates ownership/availability and saves authoritative prices, receipt snapshots, order/items and the first event atomically. Read OutputParameter after awaiting the wrapper, then reload the receipt. Wrapper task results are not the new order ID.
 
 UpdateOrderStatus(CustomerId, OrderId, NewStatusId) validates ownership and locks state/history transactionally. Transitions remain 10 → 20 or 90, 20 → 30, 30 → 40; 40/90 are terminal. Expected SQL errors 51001–51006 remain domain outcomes. Do not add cascading deletes or duplicate these transactions in UI code.
+
+## Checking automation without SQL
+
+Run `./scripts/Test-DatabaseAutomation.ps1` to check argument boundaries, Reset ordering, invalid targets, WhatIf and fail-fast behavior using a scoped fake dotnet command. It never opens SQL. `Info` and `Script` above exercise real EF discovery/export without applying SQL. Core's design-time factory and reset policy are also covered by WinUI test-suite logic tests. A real Migrate/Reset remains an explicit database operation, not part of these checks.
+
+References: [EF CLI](https://learn.microsoft.com/ef/core/cli/dotnet) and [design-time factories](https://learn.microsoft.com/ef/core/cli/dbcontext-creation).

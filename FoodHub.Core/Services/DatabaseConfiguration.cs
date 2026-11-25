@@ -63,7 +63,7 @@ public sealed class DatabaseSettings
         .UseSqlServer(RequireConnectionString()).Options);
 }
 
-/// <summary>Adapts shared application configuration to parameterless contexts and EF design-time tools.</summary>
+/// <summary>Adapts application configuration and native preferences to parameterless runtime contexts.</summary>
 /// <remarks>Provider loading belongs to ApplicationConfiguration; this adapter only creates database snapshots.</remarks>
 public static class DatabaseConfiguration
 {
@@ -71,8 +71,8 @@ public static class DatabaseConfiguration
         System.Reflection.Assembly.GetEntryAssembly() ?? typeof(DatabaseConfiguration).Assembly));
 
     /// <summary>Creates a database snapshot using the selected consumer's build environment.</summary>
-    /// <param name="applicationAssembly">The administration executable or EF design-time factory assembly.</param>
-    /// <param name="contentRoot">Optional startup project output directory for tools hosted by another executable.</param>
+    /// <param name="applicationAssembly">The executable creating the runtime context.</param>
+    /// <param name="contentRoot">Optional directory containing the runtime host defaults.</param>
     /// <returns>A launch snapshot; no SQL connection is opened.</returns>
     public static DatabaseSettings LoadSettings(System.Reflection.Assembly applicationAssembly, string? contentRoot = null)
     {

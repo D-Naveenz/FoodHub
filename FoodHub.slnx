@@ -11,9 +11,11 @@
     <File Path=".editorconfig" />
     <File Path="LICENSE.txt" />
     <File Path="README.md" />
+    <File Path="scripts/Invoke-Database.ps1" />
+    <File Path="scripts/Test-DatabaseAutomation.ps1" />
+    <File Path=".config/dotnet-tools.json" />
   </Folder>
   <Project Path="FoodHub.Core/FoodHub.Core.csproj" Id="8d1556f3-751b-4caa-a945-8ccb10296bef" />
-  <Project Path="FoodHub.Database/FoodHub.Database.csproj" />
   <Project Path="FoodHub.WinUI.Test/FoodHub.WinUI.Test.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />

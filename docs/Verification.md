@@ -1,5 +1,21 @@
 # Verification record
 
+## PowerShell database automation — 2026-11-26
+
+Replaced FoodHub.Database with scripts/Invoke-Database.ps1 and a small Core design-time factory. Core generates runtime configuration and copies managed dependencies so EF can host it directly. Removed the console project from the solution and deleted its maintained sources, including native activation-context P/Invokes and the resource-directory workaround. Their comments described behavior that is no longer needed; the new script help and factory XML documentation explain the replacement. Existing context scaffold headers, migrations, SQL and runtime settings policy are unchanged.
+
+Automation uses explicit Windows-authentication server/database parameters (localhost/FoodHub_Dev defaults), independently of appsettings, build-profile environment selection and native runtime preferences. The pinned .config/dotnet-tools.json replaces the undocumented local-tool installation path for new setup. Reset is guarded in both script and factory, supports WhatIf, and stops on a failed drop before migration. No application startup reset/migration was added.
+
+Checked:
+
+- Core builds with zero warnings/errors; EF context discovery works directly against Core without native Windows runtime activation or opening SQL.
+- Real Info and idempotent Script actions passed. SQL export contains the maintained schema/procedure/migration-history definitions and was not executed. Real Reset was tested only with WhatIf; no database was dropped, migrated or seeded.
+- scripts/Test-DatabaseAutomation.ps1 passed in a fresh PowerShell process using a scoped fake dotnet command: WhatIf and invalid targets run no native commands, Reset orders drop before update with matching guarded arguments, failures stop later steps and restore the caller's working directory, and values containing spaces/semicolons remain single arguments.
+- Final unpackaged x64 test build and application build passed with zero warnings/errors. **95 passed, zero failed, four skipped (99 total)**. Skips remain the actual package LocalPath test and three SQL integration cases without FOODHUB_TEST_CONNECTION_STRING. New factory tests cover explicit defaults, argument quoting, reset rejection and invalid/repeated options. The application customer journey was not rerun for this tooling change.
+- EF database drop --dry-run confirmed only localhost/FoodHub_Dev would be targeted. The script's actual build-plus-Info path also worked when invoked from the docs directory. Local code-only Graphify extraction was refreshed (1319 nodes/3013 edges); generated output remains ignored.
+
+
+
 ## Reusable Dhara build targets — 2026-11-26
 
 Moved the appsettings build/publish rules from repository Directory.Build.targets into Dhara's buildTransitive/Dhara.Extensions.WinUI.targets. Project-name conditions and FoodHub source paths were removed from the reusable file. Executables explicitly import it while using local project references; the database project alone selects FoodHub as its shared source directory. Pack metadata reserves the standard future NuGet buildTransitive asset. No NuGet publication or runtime settings changes were performed.

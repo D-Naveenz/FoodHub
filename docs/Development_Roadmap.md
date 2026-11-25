@@ -25,4 +25,4 @@ The implemented infrastructure now keeps generated startup, constructor-built ho
 
 The desktop host uses Dhara’s WinUI builder, automatic build-profile environments, read-only executable-owned JSON defaults and a shared native LocalSettings writer. Appearance applies immediately; database configuration remains restart-only. Legacy settings imports are removed. See Architecture for the public builder API and configuration ownership.
 
-Reusable Windows hosting and helpers now live in Dhara.Extensions.WinUI. FoodHub remains the application composition/domain layer; Core and database tooling target Windows and consume Dhara without creating XAML UI. Dhara publication and background/tray operation are deferred.
+Reusable Windows hosting and helpers now live in Dhara.Extensions.WinUI. FoodHub remains the application composition/domain layer; Core targets Windows and consumes Dhara without creating XAML UI. Database automation uses PowerShell plus EF CLI and a small Core design-time factory; the separate console project was removed. Dhara publication and background/tray operation are deferred.
