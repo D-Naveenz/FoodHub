@@ -1,5 +1,12 @@
 # Verification record
 
+## Reusable Dhara build targets — 2026-11-26
+
+Moved the appsettings build/publish rules from repository Directory.Build.targets into Dhara's buildTransitive/Dhara.Extensions.WinUI.targets. Project-name conditions and FoodHub source paths were removed from the reusable file. Executables explicitly import it while using local project references; the database project alone selects FoodHub as its shared source directory. Pack metadata reserves the standard future NuGet buildTransitive asset. No NuGet publication or runtime settings changes were performed.
+
+Verified with standalone SDK projects whose names are unrelated to FoodHub: Debug/Release/Staging copy the correct files to reused build and publish directories; stale profiles are removed, including a missing current-profile source. Relative shared paths containing spaces work, broad Content globs do not leak other profiles, and libraries/explicit opt-out leave unmanaged files alone. These checks use ordinary build/publish targets, not runtime configuration mocks. The database executable and unpackaged x64 app builds passed with zero warnings/errors. Runtime tests/SQL/manual customer journeys were not rerun for this MSBuild-only change.
+
+
 ## Read-only host configuration and native runtime settings — 2026-11-26
 
 This section supersedes the configuration/storage ownership and paths in earlier entries. Dhara now owns the shared ApplicationConfiguration/ApplicationEnvironment, LocalSettingsStore, LocalStorageService and native ApplicationDataContext. FoodHub owns bundled appsettings source files; the database executable links them. Host JSON is read-only and separate from runtime preferences; no legacy files or settings are imported. Core and administration tools now target Windows through Dhara.

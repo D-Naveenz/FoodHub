@@ -15,4 +15,8 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="*" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="*" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Reserve the standard NuGet location now; no publication is performed by a normal build. -->
+    <None Update="buildTransitive/Dhara.Extensions.WinUI.targets" Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
 </Project>

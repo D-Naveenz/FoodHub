@@ -87,4 +87,6 @@
     <!-- EF Core uses runtime model reflection; keep metadata and DI constructors in published builds. -->
     <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
+  <!-- Project references do not auto-import package build assets. NuGet consumers get this transitively. -->
+  <Import Project="../Dhara/Dhara.Extensions.WinUI/buildTransitive/Dhara.Extensions.WinUI.targets" />
 </Project>

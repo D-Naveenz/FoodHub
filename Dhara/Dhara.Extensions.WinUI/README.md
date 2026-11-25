@@ -67,7 +67,7 @@ Host configuration loads from lowest to highest priority:
 1. `appsettings.json` in ContentRootPath (default AppContext.BaseDirectory).
 2. `appsettings.{Environment}.json` in that directory.
 
-The executable owns these files and their output/publish rules. Dhara ships no application JSON and provides no API to write host files. `ReloadOnChange` defaults to false; set it to true to opt into the framework JSON providers' file watchers. `ApplicationConfiguration.Load` and `ApplicationEnvironment.Resolve` are also usable by console/tool consumers without creating a host or XAML Application. An initial malformed/inaccessible file produces an empty root and safe `ApplicationConfigurationStatus.Error`; correcting host files is an external action. The status describes initial loading, not subsequent watcher events. The consumer chooses when to capture configuration into immutable workflow snapshots.
+The executable owns these files; Dhara’s optional build targets provide their output/publish rules. Dhara ships no application JSON and provides no API to write host files. `ReloadOnChange` defaults to false; set it to true to opt into the framework JSON providers' file watchers. `ApplicationConfiguration.Load` and `ApplicationEnvironment.Resolve` are also usable by console/tool consumers without creating a host or XAML Application. An initial malformed/inaccessible file produces an empty root and safe `ApplicationConfigurationStatus.Error`; correcting host files is an external action. The status describes initial loading, not subsequent watcher events. The consumer chooses when to capture configuration into immutable workflow snapshots.
 
 `Storage.ILocalSettingsStore` holds runtime overrides independently of IConfiguration. Features read their local key/group first and use host defaults when absent. One registered `LocalSettingsStore` serializes this process's writes; it does not synchronize competing processes. `Read`, `ReadGroup`, `WriteAsync`, `RemoveAsync` and `UpdateGroupAsync` never reload or write host files. Invalid types throw `LocalSettingsValueException`; native access failures become safe IOException messages. Only an explicit `repairInvalid: true` group update may replace a malformed group; it cannot suppress storage access failures. Cancellation is honored before the synchronous native commit; that commit cannot be interrupted.
 
@@ -78,6 +78,37 @@ The executable owns these files and their output/publish rules. Dhara ships no a
 The executable owns Windows App SDK deployment and initialization. Console consumers need no WinUI Application or dispatcher to use storage; include the native runtime and initialize C#/WinRT wrappers. Tools loaded into a different executable may additionally need the startup executable's activation manifest and resource directory, as FoodHub.Database's EF factory demonstrates. No automatic legacy imports or alternate-store fallback occurs.
 
 IAppRuntimeEnvironment and IHostEnvironment.IsPackaged report actual Windows process identity independently of build configuration. Unexpected native detection errors propagate.
+
+## Build and publish defaults
+
+`buildTransitive/Dhara.Extensions.WinUI.targets` supplies reusable appsettings copy rules. It contains no application names or repository-specific source paths. Executables include optional base appsettings.json and the selected environment file at the output/publish root. Debug selects Development, Release selects Production and custom configurations retain their names, matching ApplicationEnvironment. Other profiles are excluded, including when the project already declares a broad appsettings Content glob.
+
+For a local project reference, explicitly import the targets near the end of the consuming .csproj:
+
+```xml
+<Import Project="../path/to/Dhara.Extensions.WinUI/buildTransitive/Dhara.Extensions.WinUI.targets" />
+```
+
+A ProjectReference supplies the assembly but does not automatically import that project's build assets. The library marks this file for the standard NuGet buildTransitive location, so a future package can import it for direct and indirect consumers. Do not keep the source import when switching to that package. No package publication is performed here. See [Microsoft's package build asset guidance](https://learn.microsoft.com/en-us/nuget/concepts/msbuild-props-and-targets).
+
+Set these properties in the consuming project before the import:
+
+| Property | Default and purpose |
+|---|---|
+| DharaIncludeAppSettings | true for Exe/WinExe; unset for libraries. Set false to retain your own copy rules. |
+| DharaAppSettingsDirectory | The consuming project directory. A relative path resolves from that directory; an absolute path is also accepted. |
+| DharaRemoveStaleAppSettings | true. Removes unselected appsettings files from reused build/publish artifact directories; set false to disable cleanup. |
+
+For example, another executable can share an application's sources without maintaining duplicate JSON:
+
+```xml
+<PropertyGroup>
+  <DharaAppSettingsDirectory>../MyApplication</DharaAppSettingsDirectory>
+</PropertyGroup>
+<Import Project="../path/to/Dhara.Extensions.WinUI/buildTransitive/Dhara.Extensions.WinUI.targets" />
+```
+
+Only the consumer chooses that shared location. Source files stay in their application project; Dhara ships none. Selected files become Content once, with Link/TargetPath at the executable root. Unselected None items stay visible in the IDE. Both files are optional; a missing selected profile is removed from reused artifacts rather than retaining an old copy. With no source files, disabled inclusion, or default library settings, the cleanup does nothing. These are build/publish rules and never access native runtime settings or write source JSON.
 
 ## Windows helpers
 

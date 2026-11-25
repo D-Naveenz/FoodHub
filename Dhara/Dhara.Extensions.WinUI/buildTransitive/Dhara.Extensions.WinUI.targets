@@ -1,0 +1,42 @@
+<Project>
+  <!-- NuGet imports buildTransitive targets for direct and indirect package consumers. A local
+       ProjectReference does not import them: source consumers explicitly import this file.
+       Configure the public Dhara* properties in the consuming project before this import. -->
+  <PropertyGroup>
+    <!-- Only executables own deployed host defaults; libraries must not forward application JSON. -->
+    <DharaIncludeAppSettings Condition="'$(DharaIncludeAppSettings)' == '' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">true</DharaIncludeAppSettings>
+    <DharaAppSettingsDirectory Condition="'$(DharaAppSettingsDirectory)' == ''">$(MSBuildProjectDirectory)</DharaAppSettingsDirectory>
+    <DharaRemoveStaleAppSettings Condition="'$(DharaRemoveStaleAppSettings)' == ''">true</DharaRemoveStaleAppSettings>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DharaIncludeAppSettings)' == 'true'">
+    <_DharaAppSettingsRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(DharaAppSettingsDirectory)'))</_DharaAppSettingsRoot>
+    <!-- Match ApplicationEnvironment exactly; build configuration, not DOTNET_ENVIRONMENT, selects JSON. -->
+    <_DharaAppSettingsEnvironment>$(Configuration)</_DharaAppSettingsEnvironment>
+    <_DharaAppSettingsEnvironment Condition="'$(Configuration)' == 'Debug'">Development</_DharaAppSettingsEnvironment>
+    <_DharaAppSettingsEnvironment Condition="'$(Configuration)' == 'Release'">Production</_DharaAppSettingsEnvironment>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(DharaIncludeAppSettings)' == 'true'">
+    <!-- Both files are optional, matching the runtime loader. Link/TargetPath keep shared sources at
+         the output root rather than copying their source directory structure into the application. -->
+    <_DharaAppSettings Include="$(_DharaAppSettingsRoot)appsettings.json" Condition="Exists('$(_DharaAppSettingsRoot)appsettings.json')" />
+    <_DharaAppSettings Include="$(_DharaAppSettingsRoot)appsettings.$(_DharaAppSettingsEnvironment).json" Condition="Exists('$(_DharaAppSettingsRoot)appsettings.$(_DharaAppSettingsEnvironment).json')" />
+    <!-- Override broad consumer globs so an unselected profile cannot leak into build/publish output.
+         Leave unselected None items visible in the IDE, and promote selected files to Content once. -->
+    <Content Remove="$(_DharaAppSettingsRoot)appsettings.json;$(_DharaAppSettingsRoot)appsettings.*.json" />
+    <None Update="$(_DharaAppSettingsRoot)appsettings.json;$(_DharaAppSettingsRoot)appsettings.*.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+    <None Remove="@(_DharaAppSettings)" />
+    <Content Include="@(_DharaAppSettings)" Link="%(Filename)%(Extension)" TargetPath="%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- A reused artifact directory must not retain another build profile's defaults. Never inspect
+       the runtime LocalSettings store. With no source files or opt-out, leave consumer artifacts alone. -->
+  <Target Name="DharaRemoveStaleAppSettings" BeforeTargets="PrepareForBuild;ComputeFilesToPublish"
+          Condition="'$(DharaIncludeAppSettings)' == 'true' and '$(DharaRemoveStaleAppSettings)' == 'true' and '@(_DharaAppSettings)' != ''">
+    <ItemGroup>
+      <_DharaStaleAppSettings Remove="@(_DharaStaleAppSettings)" />
+      <_DharaStaleAppSettings Include="$(OutDir)appsettings.json;$(OutDir)appsettings.*.json" Exclude="@(_DharaAppSettings->'$(OutDir)%(Filename)%(Extension)')" Condition="'$(OutDir)' != ''" />
+      <_DharaStaleAppSettings Include="$(PublishDir)appsettings.json;$(PublishDir)appsettings.*.json" Exclude="@(_DharaAppSettings->'$(PublishDir)%(Filename)%(Extension)')" Condition="'$(PublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_DharaStaleAppSettings)" />
+  </Target>
+</Project>

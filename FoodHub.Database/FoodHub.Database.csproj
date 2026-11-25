@@ -17,4 +17,10 @@
     <ProjectReference Include="../FoodHub.Core/FoodHub.Core.csproj"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" PrivateAssets="all" />
   </ItemGroup>
+  <PropertyGroup>
+    <!-- This executable shares the application's default sources; Dhara owns the generic copy rules. -->
+    <DharaAppSettingsDirectory>$(MSBuildProjectDirectory)/../FoodHub</DharaAppSettingsDirectory>
+  </PropertyGroup>
+  <!-- Project references do not auto-import package build assets. NuGet consumers get this transitively. -->
+  <Import Project="../Dhara/Dhara.Extensions.WinUI/buildTransitive/Dhara.Extensions.WinUI.targets" />
 </Project>

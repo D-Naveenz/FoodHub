@@ -22,7 +22,7 @@ The app and Test Connection never migrate or reset a database. Production upgrad
 
 ## Database configuration
 
-The UI, administration executable and EF factory all use Dhara’s shared configuration loader and native runtime settings. Core and tooling target Windows. Configuration loading is separate from the database adapter. See [desktop hosting and application settings](Architecture.md#desktop-hosting-and-application-settings) for ownership, build environments, JSON precedence and output rules.
+The UI, administration executable and EF factory all use Dhara’s shared configuration loader and native runtime settings. Core and tooling target Windows. The database project sets DharaAppSettingsDirectory to FoodHub and imports Dhara’s generic build targets to copy its selected defaults. Configuration loading is separate from the database adapter. See [desktop hosting and application settings](Architecture.md#desktop-hosting-and-application-settings) for ownership, build environments, JSON precedence and output rules.
 
 DatabaseSettings captures the effective ConnectionStrings:FoodHub value for one launch. DatabaseConfiguration adapts that shared loader to EF design-time tools and parameterless contexts; it does not define JSON providers. Administration commands explicitly load a snapshot using their executable assembly. EF design-time creation uses the factory assembly. Explicit DbContextOptions continue to take precedence.
 

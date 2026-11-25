@@ -68,7 +68,7 @@ FoodHub and Core reference Dhara; Core and FoodHub.Database target the same Wind
 
 ApplicationEnvironment maps the consuming assembly's AssemblyConfigurationAttribute: Debug → Development, Release → Production, custom names unchanged. Missing/unsafe metadata fails clearly; DOTNET_ENVIRONMENT is ignored. Host providers load base appsettings.json then appsettings.{Environment}.json from the executable directory. Runtime preferences never enter IConfiguration. Optional file watching uses standard framework providers; it is off by default, and database workflows retain their immutable launch snapshot even when enabled.
 
-FoodHub owns the appsettings source files. Directory.Build.targets copies only base plus selected environment JSON to app output/publish; FoodHub.Database links the same files. Core and Dhara ship no application JSON. Stale environment output files are removed when profiles share an output directory. Custom configurations may add corresponding JSON. The application cannot persist host-file edits; those files are corrected externally.
+FoodHub owns the appsettings source files. Both executables explicitly import Dhara’s buildTransitive/Dhara.Extensions.WinUI.targets, which copies only base plus selected environment JSON to output/publish. FoodHub.Database sets DharaAppSettingsDirectory to the FoodHub project to share those sources. The repository-specific Directory.Build.targets was removed. Core and Dhara ship no application JSON. Stale environment output files are removed when profiles share an output directory. Custom configurations may add corresponding JSON. The application cannot persist host-file edits; those files are corrected externally.
 
 ```csharp
 var builder = WinUIApplication.CreateBuilder(application,
