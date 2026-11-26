@@ -26,10 +26,13 @@
             <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
             <InfoBar x:Name="RestartNotice" Severity="Informational" IsClosable="False" IsOpen="{x:Bind ViewModel.RestartRequired, Mode=OneWay}"
                      Message="Restart FoodHub to apply saved database settings. You will need to sign in again."/>
-            <InfoBar x:Name="DatabaseFeedback" Severity="Informational" IsClosable="False" Message="{x:Bind ViewModel.Message, Mode=OneWay}"/>
+            <InfoBar x:Name="DatabaseFeedback" Severity="{x:Bind ViewModel.MessageSeverity, Mode=OneWay}" IsClosable="False" Message="{x:Bind ViewModel.Message, Mode=OneWay}"/>
             <StackPanel x:Name="DevelopmentPanel" Spacing="12" Visibility="Collapsed">
                 <TextBlock Text="Development" Style="{StaticResource SubtitleTextBlockStyle}"/>
-                <TextBox Header="Local storage" IsReadOnly="True" Text="{x:Bind Development.StoragePath}" TextWrapping="Wrap"/>
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Local storage"/>
+                    <TextBlock Text="{x:Bind Development.StoragePath}" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.Name="Local storage path"/>
+                </StackPanel>
                 <Button Content="Open local storage folder" Command="{x:Bind Development.OpenFolderCommand}"/>
                 <InfoBar x:Name="DevelopmentFeedback" Severity="Error" IsClosable="False" Message="{x:Bind Development.Message, Mode=OneWay}"/>
             </StackPanel>

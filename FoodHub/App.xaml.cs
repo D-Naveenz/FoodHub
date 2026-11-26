@@ -53,9 +53,7 @@ namespace FoodHub
         {
             if (_host is null)
             {
-                var errorWindow = new Window { Content = new TextBlock { Text = _startupFailure, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(32) } };
-                errorWindow.Closed += (_, _) => Exit();
-                errorWindow.Activate();
+                await ShowStartupFailureAsync();
                 return;
             }
             _application = GetService<IWinUIApplicationLifetime<MainWindow>>();
@@ -66,6 +64,54 @@ namespace FoodHub
                 // Dhara has already scheduled host cleanup. The app keeps only this async-void exception boundary.
                 System.Diagnostics.Trace.TraceError("Application startup failed: {0}", ex.GetType().Name);
                 await _application.RequestShutdownAsync();
+            }
+        }
+
+        /// <summary>Shows a native error dialog when bootstrap failed before the main window could be constructed.</summary>
+        /// <returns>A task that completes when the dialog is dismissed or its host window is closed.</returns>
+        private async Task ShowStartupFailureAsync()
+        {
+            // ContentDialog requires a loaded XamlRoot. The normal MainWindow depends on the failed host,
+            // so this minimal window supplies only the XAML surface, without resolving application services.
+            var root = new Grid();
+            var dialogWindow = new Window { Title = "FoodHub", Content = root };
+            var loaded = new TaskCompletionSource<bool>();
+            var closed = false;
+            var dialog = new ContentDialog
+            {
+                Title = "FoodHub could not start",
+                Content = _startupFailure,
+                CloseButtonText = "Close",
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            void RootLoaded(object sender, RoutedEventArgs args) => loaded.TrySetResult(true);
+            root.Loaded += RootLoaded;
+            dialogWindow.Closed += (_, _) =>
+            {
+                closed = true;
+                // Closing the title bar must also release any pending load or dialog wait.
+                loaded.TrySetResult(false);
+                dialog.Hide();
+                Exit();
+            };
+
+            try
+            {
+                dialogWindow.Activate();
+                if (!await loaded.Task || closed) return;
+                dialog.XamlRoot = root.XamlRoot;
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                // This is the last UI boundary: a dialog failure must not escape async-void OnLaunched.
+                System.Diagnostics.Trace.TraceError("Startup error dialog failed: {0}", ex.GetType().Name);
+            }
+            finally
+            {
+                root.Loaded -= RootLoaded;
+                if (!closed) dialogWindow.Close();
             }
         }
     }

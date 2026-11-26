@@ -1,5 +1,23 @@
 # Verification record
 
+## Startup error ContentDialog — 2026-11-26
+
+Replaced the plain TextBlock error window in App.OnLaunched with a native ContentDialog titled “FoodHub could not start” and a Close button. The bootstrap-failure path cannot construct the service-dependent main window, so a minimal window supplies the required loaded XamlRoot. Dialog dismissal closes this host; title-bar closure releases pending waits and exits. The existing safe error text and category-only tracing are preserved. Recoverable startup feedback and hosted shutdown behavior are unchanged.
+
+Checked: x64 Debug application build passed with zero warnings/errors after restoring the missing x64 assets with network access. git diff --check passed, and local code-only Graphify extraction was refreshed. The bootstrap-failure dialog, keyboard dismissal and title-bar closure were not manually exercised; compilation does not verify these runtime paths.
+
+## Settings feedback severity — 2026-11-26
+
+Database connection checks now return a typed success/warning/error outcome with safe feedback. Settings binds its database InfoBar severity to the view model: successful checks/saves/resets use Success, missing migrations/schema use Warning, and configuration/connection/save failures use Error. Cancellation, authentication guidance and the restart reminder use Informational. Native WinUI supplies severity colours and distinct icons. A load error is retained instead of being overwritten by authentication guidance.
+
+Checked: x64 Debug application and unpackaged test builds passed with zero warnings/errors. All 21 DatabaseConfigurationTests passed, including save/failure/recovery severity, initial error versus guidance, and a bounded unavailable-endpoint check. SQL integration assertions now check missing-migration Warning and ready-schema Success outcomes, but those SQL scenarios were not run for this change. No manual WinUI appearance/accessibility check was performed. git diff --check passed; local code-only Graphify extraction was refreshed without cloud calls.
+
+## Local storage path label — 2026-11-26
+
+Replaced the Development settings path text box with a wrapping, selectable TextBlock under the Local storage label. The path is informational and cannot be changed through the GUI; the existing folder-opening command is preserved.
+
+Checked: x64 Debug application build passed with zero warnings/errors, and git diff --check passed. No manual WinUI layout or accessibility check was performed for this change.
+
 ## PowerShell database automation — 2026-11-26
 
 Replaced FoodHub.Database with scripts/Invoke-Database.ps1 and a small Core design-time factory. Core generates runtime configuration and copies managed dependencies so EF can host it directly. Removed the console project from the solution and deleted its maintained sources, including native activation-context P/Invokes and the resource-directory workaround. Their comments described behavior that is no longer needed; the new script help and factory XML documentation explain the replacement. Existing context scaffold headers, migrations, SQL and runtime settings policy are unchanged.

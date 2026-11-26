@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.UI.Xaml.Controls;
 
 namespace FoodHub.WinUI.Test;
 
@@ -211,6 +212,7 @@ public sealed class DatabaseConfigurationTests
             { Server = "offline", Database = "FoodHub_Test", TrustCertificate = true };
         await first.SaveCommand.ExecuteAsync(null);
         Assert.IsTrue(first.RestartRequired);
+        Assert.AreEqual(InfoBarSeverity.Success, first.MessageSeverity);
         Assert.AreEqual("", active.ConnectionString);
         using var second = new DatabaseSettingsViewModel(active, store, tester, NullLogger<DatabaseSettingsViewModel>.Instance);
         Assert.AreEqual("offline", second.Server);
@@ -232,10 +234,48 @@ public sealed class DatabaseConfigurationTests
     {
         var tester = new DatabaseConnectionTester(NullLogger<DatabaseConnectionTester>.Instance);
         var candidate = DatabaseSettingsStore.BuildConnectionString("tcp:127.0.0.1,1", "Unavailable", false);
-        var message = await tester.TestAsync(candidate).WaitAsync(TimeSpan.FromSeconds(15));
+        var result = await tester.TestAsync(candidate).WaitAsync(TimeSpan.FromSeconds(15));
+        Assert.AreEqual(ConnectionCheckStatus.Error, result.Status);
+        var message = result.Message;
         Assert.IsTrue(message.Contains("Could not connect", StringComparison.Ordinal) || message.Contains("timed out", StringComparison.Ordinal));
         Assert.IsFalse(message.Contains(candidate, StringComparison.Ordinal));
         Assert.AreEqual(0, _container.Values.Count);
+    }
+    /// <summary>New operations replace earlier feedback severity, including failures after a successful save.</summary>
+    [TestMethod]
+    public async Task FeedbackSeverityFollowsSaveFailureAndRecovery()
+    {
+        var active = Load();
+        using var model = new DatabaseSettingsViewModel(active, new DatabaseSettingsStore(_settings, active),
+            new DatabaseConnectionTester(NullLogger<DatabaseConnectionTester>.Instance), NullLogger<DatabaseSettingsViewModel>.Instance)
+            { Server = "offline", Database = "FoodHub_Test" };
+        await model.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(InfoBarSeverity.Success, model.MessageSeverity);
+        _container.FailWrites = true;
+        await model.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(InfoBarSeverity.Error, model.MessageSeverity);
+        StringAssert.Contains(model.Message, "Could not save");
+        _container.FailWrites = false;
+        await model.ResetCommand.ExecuteAsync(null);
+        Assert.AreEqual(InfoBarSeverity.Success, model.MessageSeverity);
+    }
+    /// <summary>Configuration errors are shown as errors, while authentication guidance stays informational.</summary>
+    [TestMethod]
+    public void InitialFeedbackDistinguishesErrorsFromGuidance()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            { [Key] = "Server=localhost;Database=FoodHub_Test;User ID=example;Password=fictional" }).Build();
+        using var configurationLifetime = configuration as IDisposable;
+        var tester = new DatabaseConnectionTester(NullLogger<DatabaseConnectionTester>.Instance);
+        var active = new DatabaseSettings(configuration);
+        using var guidance = new DatabaseSettingsViewModel(active, new DatabaseSettingsStore(_settings, active), tester,
+            NullLogger<DatabaseSettingsViewModel>.Instance);
+        Assert.AreEqual(InfoBarSeverity.Informational, guidance.MessageSeverity);
+        var invalid = new DatabaseSettings(configuration, "Configuration could not be loaded.");
+        using var error = new DatabaseSettingsViewModel(invalid, new DatabaseSettingsStore(_settings, invalid), tester,
+            NullLogger<DatabaseSettingsViewModel>.Instance);
+        Assert.AreEqual(InfoBarSeverity.Error, error.MessageSeverity);
+        Assert.AreEqual(invalid.LoadError, error.Message);
     }
     /// <summary>A failed native settings commit cannot claim that changes were saved or alter active configuration.</summary>
     [TestMethod]

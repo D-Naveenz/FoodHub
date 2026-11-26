@@ -31,14 +31,18 @@ public sealed class SqlIntegrationTests
     {
         await using var database = await SqlTestDatabase.CreateAsync(_connection);
         var tester = new DatabaseConnectionTester(Microsoft.Extensions.Logging.Abstractions.NullLogger<DatabaseConnectionTester>.Instance);
-        StringAssert.Contains(await tester.TestAsync(database.ConnectionString), "migrations are missing");
+        var missing = await tester.TestAsync(database.ConnectionString);
+        Assert.AreEqual(ConnectionCheckStatus.Warning, missing.Status);
+        StringAssert.Contains(missing.Message, "migrations are missing");
         await using var db = database.Open();
         Assert.IsTrue(await db.Database.CanConnectAsync());
         Assert.AreEqual(0, (await db.Database.GetAppliedMigrationsAsync()).Count());
         var accounts = new AccountService(database.Open);
         Assert.AreEqual(AccountError.Configuration, (await accounts.LoginAsync("fictional@example.test", "password", false)).Error);
         await db.Database.MigrateAsync();
-        StringAssert.Contains(await tester.TestAsync(database.ConnectionString), "migrations are present");
+        var ready = await tester.TestAsync(database.ConnectionString);
+        Assert.AreEqual(ConnectionCheckStatus.Success, ready.Status);
+        StringAssert.Contains(ready.Message, "migrations are present");
         Assert.AreEqual(0, await db.Users.CountAsync());
     }
 

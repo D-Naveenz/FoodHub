@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using FoodHub.Core.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Xaml.Controls;
 
 namespace FoodHub.ViewModels;
 
@@ -21,6 +22,7 @@ public sealed class DatabaseSettingsViewModel : ObservableObject, IDisposable
     private bool _trustCertificate;
     private bool _isBusy;
     private string _message = "";
+    private InfoBarSeverity _messageSeverity = InfoBarSeverity.Informational;
     /// <summary>SQL Server host or named instance.</summary>
     public string Server { get => _server; set => SetProperty(ref _server, value); }
     /// <summary>Existing FoodHub database to use after restart.</summary>
@@ -31,6 +33,8 @@ public sealed class DatabaseSettingsViewModel : ObservableObject, IDisposable
     public bool IsBusy { get => _isBusy; private set { SetProperty(ref _isBusy, value); NotifyCommands(); } }
     /// <summary>Safe operation or configuration feedback.</summary>
     public string Message { get => _message; private set => SetProperty(ref _message, value); }
+    /// <summary>Native semantic styling for the current feedback, independent of its wording.</summary>
+    public InfoBarSeverity MessageSeverity { get => _messageSeverity; private set => SetProperty(ref _messageSeverity, value); }
     /// <summary>Saved changes remain pending until the app restarts.</summary>
     public bool RestartRequired => _store.RestartRequired;
     /// <summary>Tests the edited values without saving them.</summary>
@@ -47,16 +51,16 @@ public sealed class DatabaseSettingsViewModel : ObservableObject, IDisposable
         DatabaseConnectionTester tester, ILogger<DatabaseSettingsViewModel> logger)
     {
         _store = store; _tester = tester; _logger = logger; _cancellation = _lifetime.Token;
-        Message = active.LoadError ?? "";
+        SetFeedback(active.LoadError ?? "", active.LoadError is null ? InfoBarSeverity.Informational : InfoBarSeverity.Error);
         var connection = store.RestartRequired ? store.PendingConnectionString : active.ConnectionString;
         try
         {
             var builder = new SqlConnectionStringBuilder(connection ?? "");
             Server = builder.DataSource; Database = builder.InitialCatalog; TrustCertificate = builder.TrustServerCertificate;
-            if (!string.IsNullOrEmpty(connection) && !builder.IntegratedSecurity)
-                Message = "The active connection uses SQL authentication. This form saves Windows authentication settings.";
+            if (active.LoadError is null && !string.IsNullOrEmpty(connection) && !builder.IntegratedSecurity)
+                SetFeedback("The active connection uses SQL authentication. This form saves Windows authentication settings.", InfoBarSeverity.Informational);
         }
-        catch (ArgumentException) { Message = "The saved configuration is invalid. Enter valid database settings or use defaults."; }
+        catch (ArgumentException) { SetFeedback("The saved configuration is invalid. Enter valid database settings or use defaults.", InfoBarSeverity.Error); }
         TestCommand = new(() => RunAsync(TestAsync), () => !IsBusy);
         SaveCommand = new(() => RunAsync(() => _store.SaveAsync(BuildConnection(), _cancellation)), () => !IsBusy);
         ResetCommand = new(() => RunAsync(async () =>
@@ -75,27 +79,44 @@ public sealed class DatabaseSettingsViewModel : ObservableObject, IDisposable
         var candidate = BuildConnection();
         using var check = CancellationTokenSource.CreateLinkedTokenSource(_cancellation);
         _check = check; CancelCommand.NotifyCanExecuteChanged();
-        try { Message = await _tester.TestAsync(candidate, check.Token); }
+        try
+        {
+            var result = await _tester.TestAsync(candidate, check.Token);
+            // Classify by the service outcome, so changing message wording cannot change its styling.
+            var severity = result.Status switch
+            {
+                ConnectionCheckStatus.Success => InfoBarSeverity.Success,
+                ConnectionCheckStatus.Warning => InfoBarSeverity.Warning,
+                _ => InfoBarSeverity.Error
+            };
+            SetFeedback(result.Message, severity);
+        }
         finally { _check = null; CancelCommand.NotifyCanExecuteChanged(); }
     }
     /// <summary>Serializes page work and presents safe errors without logging connection details.</summary>
     private async Task RunAsync(Func<Task> action)
     {
         if (IsBusy || _disposed) return;
-        IsBusy = true; Message = "";
+        IsBusy = true; SetFeedback("", InfoBarSeverity.Informational);
         try
         {
             await action();
-            if (RestartRequired && string.IsNullOrEmpty(Message)) Message = "Saved. Restart FoodHub to apply the database configuration.";
+            if (RestartRequired && string.IsNullOrEmpty(Message)) SetFeedback("Saved. Restart FoodHub to apply the database configuration.", InfoBarSeverity.Success);
         }
-        catch (OperationCanceledException) { if (!_disposed) Message = "Connection check cancelled."; }
-        catch (DatabaseConfigurationException ex) { Message = ex.Message; }
+        catch (OperationCanceledException) { if (!_disposed) SetFeedback("Connection check cancelled.", InfoBarSeverity.Informational); }
+        catch (DatabaseConfigurationException ex) { SetFeedback(ex.Message, InfoBarSeverity.Error); }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or ArgumentException)
         {
             _logger.LogWarning("Database settings operation failed: {Category}", ex.GetType().Name);
-            Message = "Could not save database settings. Check access to FoodHub local application settings.";
+            SetFeedback("Could not save database settings. Check access to FoodHub local application settings.", InfoBarSeverity.Error);
         }
         finally { IsBusy = false; OnPropertyChanged(nameof(RestartRequired)); }
+    }
+    /// <summary>Sets the semantic presentation before publishing new message text to the view.</summary>
+    private void SetFeedback(string message, InfoBarSeverity severity)
+    {
+        MessageSeverity = severity;
+        Message = message;
     }
     /// <summary>Refreshes command availability after each operation.</summary>
     private void NotifyCommands()
