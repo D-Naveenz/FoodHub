@@ -25,6 +25,8 @@ public sealed partial class MainWindow : Window
     private readonly IWindowRegistry _windows;
     private readonly long _paneOpenChangedToken;
     private Type? _pendingDestination;
+    private object? _pendingParameter;
+    private readonly BasketState _basket;
     private WeakReference<Control>? _returnFocus;
     /// <summary>Shared observable account state.</summary>
     public SessionState Session { get; }
@@ -36,8 +38,12 @@ public sealed partial class MainWindow : Window
     /// <param name="appearance">FoodHub's persisted appearance adapter.</param>
     /// <param name="paths">The bundled content paths used for application-specific assets.</param>
     /// <param name="windows">The reusable registry used to track owned windows and suppress navigation during shutdown.</param>
-    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationDataPaths paths, IWindowRegistry windows)
+    /// <param name="basket">Shared preview quantities used for the navigation badge.</param>
+    /// <param name="checkout">Launch-lifetime placement coordinator; constructing it observes account boundaries before restoration.</param>
+    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationDataPaths paths, IWindowRegistry windows,
+        BasketState basket, CheckoutCoordinator checkout)
     {
+        _basket = basket;
         Session = session;
         _windows = windows;
         InitializeComponent();
@@ -50,11 +56,14 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon(Path.Combine(paths.ContentRoot, "Assets", "AppIcon.ico"));
         Session.PropertyChanged += SessionChanged;
+        basket.PropertyChanged += BasketChanged;
+        BasketChanged(null, new(null));
         Closed += (_, _) =>
         {
             // Programmatic Close can be intercepted and delivered again after asynchronous host cleanup.
             if (_closing) return;
             _closing = true; Session.PropertyChanged -= SessionChanged;
+            basket.PropertyChanged -= BasketChanged;
             NavView.UnregisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty, _paneOpenChangedToken);
             AuthenticationWindow?.Close();
         };
@@ -64,14 +73,19 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Routes all customer navigation through the authentication gate.</summary>
-    public void Navigate(Type page)
+    /// <param name="page">The destination page type.</param>
+    /// <param name="parameter">An item snapshot or order identity retained across modal sign-in.</param>
+    public void Navigate(Type page, object? parameter = null)
     {
         if (RequiresAccount(page) && !Session.IsAuthenticated)
         {
             _pendingDestination = page;
-            Navigate(typeof(ProfilePage)); OpenAuthentication(false); return;
+            _pendingParameter = parameter;
+            OpenAuthentication(false);
+            DispatcherQueue.TryEnqueue(SynchronizeSelection);
+            return;
         }
-        if (NavFrame.CurrentSourcePageType != page) NavFrame.Navigate(page);
+        if (NavFrame.CurrentSourcePageType != page || parameter is not null) NavFrame.Navigate(page, parameter);
     }
 
     /// <summary>Opens or activates the account window and disables native input on its owner.</summary>
@@ -94,9 +108,10 @@ public sealed partial class MainWindow : Window
                 if (window.Succeeded)
                 {
                     var destination = _pendingDestination ?? typeof(ProfilePage);
-                    _pendingDestination = null; Navigate(destination);
+                    var parameter = _pendingParameter;
+                    _pendingDestination = null; _pendingParameter = null; Navigate(destination, parameter);
                 }
-                else _pendingDestination = null;
+                else { _pendingDestination = null; _pendingParameter = null; }
                 if (_returnFocus?.TryGetTarget(out var control) == true && control.IsLoaded) control.Focus(FocusState.Programmatic);
                 _returnFocus = null;
             };
@@ -113,6 +128,16 @@ public sealed partial class MainWindow : Window
 
     private static bool RequiresAccount(Type? page) => page == typeof(OrdersPage) || page == typeof(CheckoutPage)
         || page == typeof(ConfirmationPage) || page == typeof(OrderDetailsPage);
+
+    /// <summary>Returns through the shell so page behavior and private navigation remain coordinated.</summary>
+    public void GoBack() { if (NavFrame.CanGoBack) NavFrame.GoBack(); else Navigate(typeof(MenuPage)); }
+
+    /// <summary>Updates the shell's always-accessible basket unit count.</summary>
+    private void BasketChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        BasketBadge.Value = _basket.Count;
+        BasketBadge.Visibility = _basket.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void TitleBar_PaneToggleRequested(TitleBar sender, object args) => NavView.IsPaneOpen = !NavView.IsPaneOpen;
     private void TitleBar_BackRequested(TitleBar sender, object args)

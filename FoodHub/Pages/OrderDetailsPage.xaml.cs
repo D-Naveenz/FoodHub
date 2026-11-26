@@ -1,10 +1,17 @@
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
+
 namespace FoodHub.Pages;
-/// <summary>Navigation skeleton for order details and tracking; the customer workflow is intentionally deferred.</summary>
+
+/// <summary>Presents an owned saved receipt through the shared tracking view.</summary>
 public sealed partial class OrderDetailsPage : Page
 {
-    /// <summary>Creates this clearly labeled page preview.</summary>
+    /// <summary>Creates the receipt route without loading unscoped order data.</summary>
     public OrderDetailsPage() => InitializeComponent();
-    
+    /// <summary>Passes the navigation identity to the view model's ownership-checked reader.</summary>
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        ReceiptView.OrderId = e.Parameter is int id ? id : 0;
+    }
 }

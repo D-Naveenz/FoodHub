@@ -74,3 +74,9 @@ UpdateOrderStatus(CustomerId, OrderId, NewStatusId) validates ownership and lock
 Run `./scripts/Test-DatabaseAutomation.ps1` to check argument boundaries, Reset ordering, invalid targets, WhatIf and fail-fast behavior using a scoped fake dotnet command. It never opens SQL. `Info` and `Script` above exercise real EF discovery/export without applying SQL. Core's design-time factory and reset policy are also covered by WinUI test-suite logic tests. A real Migrate/Reset remains an explicit database operation, not part of these checks.
 
 References: [EF CLI](https://learn.microsoft.com/ef/core/cli/dotnet) and [design-time factories](https://learn.microsoft.com/ef/core/cli/dbcontext-creation).
+
+## Ordering application services
+
+The customer pages use MenuService and OrderingService with one short-lived context per operation. Every private operation validates the session and derives its customer owner; PlaceOrder and UpdateOrderStatus retain their existing contracts and SQL transactions. No schema change is required. Checkout refreshes prices/contact/address before dispatch, but the receipt always uses authoritative committed SQL snapshots.
+
+Optional demo seed paths now reference bundled Assets/Menu SVG illustrations. Existing databases are not rewritten or seeded automatically. The seed script inserts data deliberately and is not idempotent. Transport failures after placement dispatch may be ambiguous: refresh owned history and explicitly reconcile before another attempt. No idempotency-key migration or automatic retry has been introduced.

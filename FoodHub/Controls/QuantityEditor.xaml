@@ -1,0 +1,22 @@
+<UserControl x:Class="FoodHub.Controls.QuantityEditor"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <StackPanel x:Name="Compact" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="AddButton" Content="Add to cart" Style="{StaticResource AccentButtonStyle}" Click="Edit_Click"/>
+        </StackPanel>
+        <StackPanel x:Name="Expanded" Visibility="Collapsed" Spacing="8">
+            <TextBlock Text="Quantity"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Content="−" Click="Minus_Click" AutomationProperties.Name="Decrease quantity"/>
+                <NumberBox x:Name="QuantityBox" Minimum="0" Maximum="32767" SmallChange="1" LargeChange="10" Width="90"
+                    SpinButtonPlacementMode="Hidden" AutomationProperties.Name="Quantity" ValueChanged="QuantityChanged"/>
+                <Button Content="+" Click="Plus_Click" AutomationProperties.Name="Increase quantity"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Confirm" Style="{StaticResource AccentButtonStyle}" Click="Confirm_Click"/>
+                <Button Content="&#xE711;" FontFamily="{StaticResource SymbolThemeFontFamily}" Click="Cancel_Click" AutomationProperties.Name="Cancel quantity changes"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

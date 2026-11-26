@@ -78,6 +78,21 @@ public sealed class SessionState : ObservableObject, IDisposable
     /// <summary>Revalidates the current token; failures hide private state without deleting a retryable token.</summary>
     public Task RefreshAsync(CancellationToken cancellation = default) => ExecuteAsync((token, ct) => _accounts.ValidateAsync(token, ct), cancellation);
 
+    /// <summary>Runs an ordering operation with the private bearer token and suppresses results from an obsolete session.</summary>
+    public async Task<OrderingResult<T>> OrderAsync<T>(Func<string, Task<OrderingResult<T>>> operation)
+    {
+        if (_token is null || !IsAuthenticated) return new(default, OrderingError.Expired, "Please sign in to continue.");
+        var generation = _generation;
+        var result = await operation(_token);
+        if (generation != _generation || !IsAuthenticated) throw new OperationCanceledException("The account changed.");
+        if (result.Error == OrderingError.Expired)
+        {
+            await ClearAsync();
+            Message = result.Message;
+        }
+        return result;
+    }
+
     /// <summary>Runs an owned operation and discards results after account changes.</summary>
     public async Task ExecuteAsync(Func<string, CancellationToken, Task<AccountResult<SessionTicket>>> operation, CancellationToken cancellation = default)
     {

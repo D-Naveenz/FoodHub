@@ -1,11 +1,12 @@
-<Page x:Class="FoodHub.Pages.BasketPage" 
-      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
-      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer>
-        <StackPanel Padding="32" Spacing="24">
-            <TextBlock Text="Basket" Style="{StaticResource TitleTextBlockStyle}"/>
-            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Basket editing will be added in a later milestone."/>
-            <Button Content="Open checkout page" Click="Next_Click"/>
-        </StackPanel>
-    </ScrollViewer>
+<Page x:Class="FoodHub.Pages.BasketPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <ScrollViewer><StackPanel Padding="32" Spacing="20" MaxWidth="1000" HorizontalAlignment="Stretch">
+  <TextBlock Text="Your basket" Style="{StaticResource TitleTextBlockStyle}"/>
+  <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
+  <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
+  <StackPanel x:Name="Lines" Spacing="12"/>
+  <TextBlock x:Name="Totals" FontSize="20" TextWrapping="Wrap"/>
+  <StackPanel Orientation="Horizontal" Spacing="12"><Button Content="Browse menu" Click="Menu_Click"/><Button Content="Refresh prices" Click="Refresh_Click"/><Button x:Name="ClearButton" Content="Clear basket" Click="Clear_Click"/></StackPanel>
+  <Button x:Name="CheckoutButton" Content="Continue to checkout" Style="{StaticResource AccentButtonStyle}" Click="Checkout_Click"/>
+  <Button x:Name="SavedButton" Content="Open confirmed order" Click="Saved_Click" Visibility="Collapsed"/>
+ </StackPanel></ScrollViewer>
 </Page>

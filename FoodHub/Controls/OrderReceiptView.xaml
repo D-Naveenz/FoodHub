@@ -1,0 +1,25 @@
+<UserControl x:Class="FoodHub.Controls.OrderReceiptView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel Spacing="20">
+  <StackPanel Orientation="Horizontal" Spacing="12"><Button x:Name="RefreshButton" Content="Refresh receipt" Click="Refresh_Click"/><Button Content="All orders" Click="Orders_Click"/></StackPanel>
+  <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
+  <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
+  <StackPanel x:Name="ContentPanel" Spacing="20" Visibility="Collapsed">
+   <TextBlock x:Name="OrderNumber" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap"/>
+   <Border Padding="24" CornerRadius="12" Background="{ThemeResource AccentFillColorTertiaryBrush}">
+    <StackPanel Spacing="8"><TextBlock Text="Delivery status"/><TextBlock x:Name="Status" FontSize="32" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Text="Simulated delivery · refresh to see saved updates" TextWrapping="Wrap"/></StackPanel>
+   </Border>
+   <TextBlock Text="Delivery timeline" Style="{StaticResource SubtitleTextBlockStyle}"/>
+   <StackPanel x:Name="Timeline" Spacing="12"/>
+   <StackPanel Spacing="12"><TextBlock Text="Demo controls: these simulate delivery; they do not track a driver." TextWrapping="Wrap"/>
+    <Button x:Name="AdvanceButton" Content="Advance demo delivery" Click="Advance_Click"/>
+    <Button x:Name="CancelButton" Content="Cancel order" Click="Cancel_Click"/>
+   </StackPanel>
+   <TextBlock Text="Saved receipt" Style="{StaticResource SubtitleTextBlockStyle}"/>
+   <TextBlock x:Name="Contact" TextWrapping="Wrap"/>
+   <StackPanel x:Name="Lines" Spacing="12"/>
+   <TextBlock x:Name="Totals" FontSize="22" TextWrapping="Wrap"/>
+   <TextBlock Text="Payment: Cash on delivery"/>
+   <Button Content="Browse menu" Click="Menu_Click"/>
+  </StackPanel>
+ </StackPanel>
+</UserControl>

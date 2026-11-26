@@ -66,6 +66,7 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Basket" Tag="basket">
+                    <NavigationViewItem.InfoBadge><InfoBadge x:Name="BasketBadge" Visibility="Collapsed"/></NavigationViewItem.InfoBadge>
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7BF;"/>
                     </NavigationViewItem.Icon>

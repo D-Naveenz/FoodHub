@@ -22,6 +22,10 @@ public static class FoodHubServiceCollectionExtensions
         services.TryAddSingleton<DatabaseConnectionTester>();
         services.TryAddSingleton<Func<Models.FoodHub_DevContext>>(sp => sp.GetRequiredService<DatabaseSettings>().Open);
         services.TryAddSingleton<AccountService>();
+        services.TryAddSingleton<MenuService>();
+        services.TryAddSingleton<OrderingService>();
+        services.TryAddSingleton<IOrderingService>(sp => sp.GetRequiredService<OrderingService>());
+        services.TryAddSingleton<BasketState>();
         return services;
     }
 }

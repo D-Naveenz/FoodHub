@@ -1,5 +1,21 @@
 # Verification record
 
+## Menu, basket and ordering journey — 2026-11-27
+
+Implemented public category/search/sort browsing, virtualized meal cards, staged quantity editing with Toolkit Labs transitions, connected item-image navigation, shared in-memory basket totals/badges, owned checkout, confirmation/receipts, active/past order cards, and explicitly simulated delivery/cancellation. The existing schema and SQL procedure contracts are unchanged. Added fictional local SVG food illustrations and missing-image fallback. Replaced placeholder comments because those views now implement the actual customer workflow; existing scaffold/provenance headers remain intact.
+
+Checks performed:
+
+- x64 Debug solution build (default packaged configuration) and unpackaged application/test builds passed with zero warnings/errors. Final unpackaged regression run: **112 passed, zero failed, one skipped (113 total)**, including all four SQL integration scenarios. The skip requires actual package identity for the native package LocalFolder check.
+- Real SQL integration ran against uniquely named disposable FoodHub_Test databases on localhost, never FoodHub_Dev. It covered session ownership, wrong-owner addresses/receipts/status writes, invalid/empty/unavailable baskets without partial orders, authoritative prices, immutable receipt snapshots after profile/address/menu/store edits, allowed/invalid/terminal transitions and competing requests without duplicate events. Existing account and schema integration tests also passed.
+- Logic/dispatcher tests cover basket quantity replacement/removal/ranges/totals, guest sign-in and account departure, price/availability reconciliation, combined filters/sorting, late session results, shared in-flight placement, retained confirmed identities and uncertain outcomes requiring explicit history reconciliation. A regression also verifies account replacement before queued dispatch cannot submit old items as the new customer.
+- Manual dark-theme guest UI smoke check used a separate generated database seeded only with fictional menu rows. Verified bundled artwork, populated cards/category tokens, editor expansion, plus/Confirm without accidental item navigation, basket badge and LKR 1250 + 250 = 1500 totals, item navigation and returning with the menu scroll position retained. An empty database also showed the menu empty state. The strong selected-card background seen during the check was replaced with a neutral surface and accent outline to keep price text readable.
+- The temporary UI database was removed and build-output configuration restored. No development database reset/seed, account changes, remembered-session edits, host JSON source edits or schema migration were performed. The optional seed script now references the bundled SVG paths and remains explicitly invoked/non-idempotent.
+- git diff --check passed. Local code-only Graphify extraction was refreshed without cloud calls; generated output remains ignored.
+
+Not manually exercised: the signed-in GUI checkout/confirmation/tracking/cancellation journey and restart/history, cancel/zero editing and boundary input through the UI, animation timing/reduced-motion behavior, image failure paths, outages/uncertain-write GUI recovery, narrow windows, full keyboard/screen-reader use, high text scaling/high contrast, light theme and fresh MSIX deployment. SQL and dispatcher checks are not a claim that these GUI journeys were exercised. The SQL contract has no idempotency key: an uncertain write is never automatically retried, and a deliberate retry can duplicate an order if the original committed.
+
+
 ## Startup error ContentDialog — 2026-11-26
 
 Replaced the plain TextBlock error window in App.OnLaunched with a native ContentDialog titled “FoodHub could not start” and a Close button. The bootstrap-failure path cannot construct the service-dependent main window, so a minimal window supplies the required loaded XamlRoot. Dialog dismissal closes this host; title-bar closure releases pending waits and exits. The existing safe error text and category-only tracing are preserved. Recoverable startup feedback and hosted shutdown behavior are unchanged.

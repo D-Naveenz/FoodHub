@@ -1,11 +1,17 @@
-<Page x:Class="FoodHub.Pages.CheckoutPage" 
-      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
-      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer>
-        <StackPanel Padding="32" Spacing="24">
-            <TextBlock Text="Checkout" Style="{StaticResource TitleTextBlockStyle}"/>
-            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="Page preview" Message="Order review and placement will be added in a later milestone."/>
-            <Button Content="Preview confirmation page" Click="Next_Click"/>
-        </StackPanel>
-    </ScrollViewer>
+<Page x:Class="FoodHub.Pages.CheckoutPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <ScrollViewer><StackPanel Padding="32" Spacing="20" MaxWidth="900" HorizontalAlignment="Stretch">
+  <TextBlock Text="Review your delivery" Style="{StaticResource TitleTextBlockStyle}"/>
+  <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
+  <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
+  <TextBlock x:Name="Contact" TextWrapping="Wrap" FontSize="18"/>
+  <ComboBox x:Name="Addresses" Header="Delivery address" HorizontalAlignment="Stretch" DisplayMemberPath="Text" SelectedValuePath="Id" SelectionChanged="Address_Changed"/>
+  <Button Content="Edit contact details and addresses" Click="Profile_Click"/>
+  <StackPanel x:Name="Lines" Spacing="8"/>
+  <TextBlock x:Name="Totals" FontSize="22" TextWrapping="Wrap"/>
+  <TextBlock Text="Payment: Cash on delivery"/>
+  <StackPanel Orientation="Horizontal" Spacing="12"><Button Content="Back to basket" Click="Basket_Click"/><Button x:Name="RefreshButton" Content="Refresh review" Click="Refresh_Click"/></StackPanel>
+  <Button x:Name="PlaceButton" Content="Confirm order" Style="{StaticResource AccentButtonStyle}" Click="Place_Click"/>
+  <Button x:Name="HistoryButton" Content="Check order history" Click="History_Click" Visibility="Collapsed"/>
+  <Button x:Name="SavedButton" Content="Open confirmed order" Click="Saved_Click" Visibility="Collapsed"/>
+ </StackPanel></ScrollViewer>
 </Page>

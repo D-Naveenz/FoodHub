@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-FoodHub is an educational WinUI 3 customer application. The main window provides Home, Menu, Basket, Orders, Profile, About and Settings navigation. Ordering pages are clearly labeled skeletons. Accounts, sessions, editable contact details, addresses and profile-photo selection are implemented; ordering is not.
+FoodHub is an educational WinUI 3 customer application. The main window provides Home, Menu, Basket, Orders, Profile, About and Settings navigation. Menu, item details, basket, owned checkout, confirmation, receipts, history and simulated delivery are implemented alongside accounts, sessions, editable contact details, addresses and profile-photo selection.
 
 The account window is a separate owned native window. Its owner is disabled until it closes. The 900 × 600 effective-pixel account window hosts separate LoginPage and RegistrationPage views in a Frame. Click-handled HyperlinkButtons switch forms with native horizontal slide transitions while the red image banner remains fixed. Each page scrolls independently; the native close button dismisses the window. Profile stays in the main window. A `PersonPicture` shows the supplied guest image, a saved account photo, or initials derived from display name. Navigation profile-name visibility follows `NavigationView.IsPaneOpen` immediately, rather than waiting for the pane animation to finish; session validation still controls which name is available.
 
@@ -37,11 +37,23 @@ Names and phone are editable; email is read-only. Every address operation derive
 
 Database operations are asynchronous and use a short-lived context. Do not block the UI with `.Result`/`.Wait()` or share a context concurrently. A shared, immutable JSON configuration snapshot supplies runtime, administrative-tool, and EF design-time settings; externally supplied DbContextOptions take precedence. See the hosting/settings section below for provider precedence and [Database](Database.md) for database restart behavior. No migrations run during app startup.
 
-## Ordering work remains deferred
+## Menu and ordering workflows
 
-Keep the basket in memory when that milestone is implemented. Scope order reads/writes to the authenticated customer. Use the retained `PlaceOrder` and `UpdateOrderStatus` contracts for order writes; SQL Server owns authoritative prices, receipt snapshots and status transitions. Store timestamps in UTC and display them in the user's local time. Delivery remains explicitly simulated.
+`MenuService` reads detached public catalogue/item projections. `IOrderingService`/`OrderingService` reviews checkout, reads owned history/receipts, and invokes the maintained `PlaceOrder` and `UpdateOrderStatus` procedure wrappers. Every private call validates the opaque token and derives ownership from SQL; navigation IDs and view-model values never establish ownership. Contexts remain short-lived, SQL owns authoritative receipt snapshots and transitions, and timestamps remain UTC until presentation. No schema migration is needed for these pages.
 
-See [Database](Database.md) for migration ownership, [Accounts](Accounts.md) for operation/validation details, and [Verification](Verification.md) for actual checks and remaining manual scenarios.
+`BasketState` is a singleton, observable in-memory preview with unique meal IDs and quantities from 1 to 32767. A staged editor permits zero as removal; only Confirm changes the basket. SQL inputs never include zero or duplicate IDs. StoreSettings supplies currency/delivery fee; an empty basket has zero totals. Reconciliation retains removed/unavailable lines for explicit removal. Guest sign-in carries items forward; leaving/replacing an account clears them, while profile refreshes preserve them.
+
+`MenuBrowseState` retains search/category/availability/sort/scroll preferences without retaining a page. `MenuViewModel` loads and filters meals; `JourneyViewModel` owns cancellable ordering reads/reviews. `ViewModelFactory` creates these page-owned instances. Thin view code handles native controls, image fallback, navigation and rendering. A shared `QuantityEditor` stages edits; a separate card-body button prevents purchase buttons from invoking item navigation.
+
+The app pins Toolkit Labs TokenView and TransitionHelper to 0.1.251217-build.2433 from NuGet. These experimental components provide filter tokens and compact/editor morphs. Native ItemsView/UniformGridLayout provides virtualization; each tile reserves expansion space. Native connected animations link item images across navigation when their source/target is realized. Windows animation preferences are honored, and editing/navigation still work without motion. Menu artwork is fictional, bundled SVG; only paths beneath Assets/Menu are accepted, and invalid or failed images use a local fallback.
+
+`CheckoutCoordinator` owns dispatched placement independently of the page. It shares an in-flight task, retains confirmed order IDs until a receipt is displayed, and clears the basket only after a confirmed write. Page cancellation does not cancel placement. Session generations suppress results from departed accounts. Checkout re-reads current prices, availability, contact and owned addresses; changed values require another explicit review/confirmation. SQL can still change between review and procedure execution: the saved receipt always shows authoritative committed values.
+
+A transport/cancellation failure after placement dispatch is uncertain. There is no automatic retry or new schema/idempotency contract. The customer must inspect successfully refreshed history and acknowledge the duplicate-order risk before another attempt. A known order ID with a failed receipt read is retried as a read only. Database/schema/configuration failures have safe typed results without raw SQL payloads.
+
+Orders groups active/past cards newest first. Confirmation and details share the saved-receipt/timeline view. Demo progression requests 10 → 20 → 30 → 40; cancellation requests 10 → 90. SQL validates ownership and transitions transactionally, including competing actions. Refresh reloads saved state after actions and conflicts; there is no GPS, automatic progression or polling.
+
+See [Database](Database.md), [Verification](Verification.md), and [Roadmap](Development_Roadmap.md).
 
 ## Runtime identity and configuration lifetime
 

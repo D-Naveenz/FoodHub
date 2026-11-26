@@ -17,15 +17,15 @@ BEGIN
         (
             VALUES
                 (N'Mains', N'Chicken kottu', N'Chopped roti with chicken and vegetables.',
-                    1250.00, N'Assets/Menu/chicken-kottu.jpg', 1),
+                    1250.00, N'Assets/Menu/chicken-kottu.svg', 1),
                 (N'Mains', N'Vegetable fried rice', N'Fried rice with mixed vegetables.',
-                    950.00, N'Assets/Menu/vegetable-fried-rice.jpg', 1),
+                    950.00, N'Assets/Menu/vegetable-fried-rice.svg', 1),
                 (N'Sides', N'Potato wedges', N'Crisp seasoned potato wedges.',
-                    550.00, N'Assets/Menu/potato-wedges.jpg', 1),
+                    550.00, N'Assets/Menu/potato-wedges.svg', 1),
                 (N'Drinks', N'Fresh lime juice', N'Chilled lime juice.',
-                    400.00, N'Assets/Menu/lime-juice.jpg', 1),
+                    400.00, N'Assets/Menu/lime-juice.svg', 1),
                 (N'Drinks', N'Ginger iced tea', N'Black tea with ginger and lime.',
-                    450.00, N'Assets/Menu/ginger-iced-tea.jpg', 0)
+                    450.00, N'Assets/Menu/ginger-iced-tea.svg', 0)
         ) AS sample (CategoryName, ItemName, ItemDescription, UnitPrice, PhotoPath, IsAvailable)
         INNER JOIN dbo.MenuCategories AS category
             ON category.CategoryName = sample.CategoryName;

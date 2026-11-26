@@ -41,6 +41,9 @@
     <Compile Include="..\FoodHub\ViewModels\DevelopmentSettingsViewModel.cs" Link="ViewModels\DevelopmentSettingsViewModel.cs" />
     <!-- Test the same protected-storage implementation without starting the customer app. -->
     <Compile Include="..\FoodHub\Services\SessionStorage.cs" Link="Services\SessionStorage.cs" />
+    <Compile Include="..\FoodHub\Services\SessionState.cs" Link="Services\SessionState.cs" />
+    <Compile Include="..\FoodHub\Services\CheckoutCoordinator.cs" Link="Services\CheckoutCoordinator.cs" />
+    <Compile Include="..\FoodHub\ViewModels\MenuViewModel.cs" Link="ViewModels\MenuViewModel.cs" />
   </ItemGroup>
 
   <ItemGroup>

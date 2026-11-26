@@ -23,6 +23,8 @@ public static class ApplicationHost
         builder.Services.AddSingleton<SessionState>();
         builder.Services.AddSingleton<AppearanceSettings>();
         builder.Services.AddSingleton<ViewModelFactory>();
+        builder.Services.AddSingleton<CheckoutCoordinator>();
+        builder.Services.AddSingleton<MenuBrowseState>();
         return builder.Build();
     }
 }
@@ -30,6 +32,10 @@ public static class ApplicationHost
 /// <summary>Creates view-owned state without keeping disposable view models in the root container.</summary>
 public sealed class ViewModelFactory(IServiceProvider services)
 {
+    /// <summary>Creates page-owned ordering state and its cancellation lifetime.</summary>
+    public JourneyViewModel CreateJourney() => ActivatorUtilities.CreateInstance<JourneyViewModel>(services);
+    /// <summary>Creates menu state while keeping browsing preferences in a shared lightweight store.</summary>
+    public MenuViewModel CreateMenu() => ActivatorUtilities.CreateInstance<MenuViewModel>(services);
     /// <summary>The caller disposes this form state when its native window closes.</summary>
     public AuthenticationViewModel CreateAuthentication(bool registration) => ActivatorUtilities.CreateInstance<AuthenticationViewModel>(services, registration);
     /// <summary>The caller disposes profile state when its page unloads.</summary>
