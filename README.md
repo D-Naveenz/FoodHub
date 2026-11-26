@@ -1,6 +1,6 @@
 # FoodHub
 
-Current version: **v0.1.0**. See [Changelog](CHANGELOG.md) for this milestone.
+Current version: **v0.2.0**. See [Changelog](CHANGELOG.md) for this milestone.
 
 An educational Foodhub-inspired WinUI 3 customer application backed by SQL Server. The intended journey is account/profile -> menu -> basket -> delivery checkout -> simulated tracking and order history. This is not an official Foodhub app or an integration with its services.
 
