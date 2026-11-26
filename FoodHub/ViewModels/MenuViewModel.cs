@@ -15,6 +15,9 @@ public sealed class MenuViewModel(MenuService menu, BasketState basket, MenuBrow
     public IReadOnlyList<CategorySummary> Categories => _catalogue?.Categories ?? [];
     /// <summary>Filtered meals in the chosen presentation order.</summary>
     public IReadOnlyList<MealDetails> Meals => Filter(_catalogue?.Meals ?? [], browse);
+    /// <summary>Distinguishes an unpopulated catalogue from a search with no matches.</summary>
+    public string EmptyMessage => _catalogue is null ? "" : _catalogue.Meals.Count == 0
+        ? "No meals are on the menu yet." : "No meals match these filters.";
     /// <summary>Safe feedback or empty text.</summary>
     public string Message { get; private set; } = "";
     /// <summary>Whether a catalogue operation is running.</summary>

@@ -57,6 +57,7 @@ public sealed partial class MenuPage : Page
         BusyProgress.Visibility = _viewModel.IsBusy ? Visibility.Visible : Visibility.Collapsed;
         Feedback.Message = _viewModel.Message; Feedback.IsOpen = _viewModel.Message.Length > 0;
         Meals.ItemsSource = _viewModel.Meals;
+        Empty.Text = _viewModel.EmptyMessage;
         Empty.Visibility = !_viewModel.IsBusy && _viewModel.Meals.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
     private void BasketChanged(object? sender, PropertyChangedEventArgs e) => BasketButton.Content = $"Basket · {_basket.Count} · {MenuImages.Money(_basket.Total, _basket.Prices?.Currency)}";

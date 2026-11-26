@@ -80,7 +80,7 @@ Preserve comments/provenance, document authored APIs and update repository guida
 
 ## Trying the ordering journey
 
-Apply migrations explicitly, then deliberately execute `docs/Foodhub_Demo_Seed.sql` against your development database if menu data is wanted. The script is optional, inserts fictional demonstration rows, and is not idempotent. The app never seeds or resets a database automatically. A newly migrated database has an empty menu until data is supplied. Bundled menu paths use `Assets/Menu/*.svg`; missing/invalid images use the shared fallback.
+Apply migrations explicitly, then load the fictional menu with `sqlcmd -S localhost -d FoodHub_Dev -E -C -b -i scripts/Seed-Menu.sql`. This optional menu-only script can be repeated: it adds missing examples without overwriting menu edits or creating accounts/orders. `docs/Foodhub_Demo_Seed.sql` remains the broader, non-idempotent presentation seed with fictional customers/orders. The app never seeds or resets a database automatically. A newly migrated database has an empty menu until data is supplied. Bundled menu paths use `Assets/Menu/*.svg`; missing/invalid images use the shared fallback.
 
 Guests can browse and prepare a basket. Checkout opens the existing sign-in window and resumes after success; save an address through Profile first. Review checkout and confirm Cash on delivery. Orders opens saved receipts and timestamped tracking; labeled demo buttons advance only the next permitted stage, and cancellation is available only at Order placed. Basket contents survive guest sign-in but clear on sign-out, expiry, account replacement or successful placement, and are not saved across app restarts.
 

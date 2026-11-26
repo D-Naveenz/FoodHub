@@ -1,5 +1,10 @@
 # Verification record
 
+## Empty development menu — 2026-11-27
+
+Confirmed localhost/FoodHub_Dev contained zero categories and zero menu items. Explicitly applied the new scripts/Seed-Menu.sql, which adds only missing fictional categories/items and leaves existing menu edits and customer data intact. Ran it twice: the result remained three categories, five meals, four available. Account/customer/order counts remained 1/1/0. No reset, migration, account creation or order seeding was performed. The application empty message now distinguishes a menu with no data from filters with no matches. README and database setup explain the repeatable menu-only command. The x64 unpackaged application build passed with zero warnings/errors; git diff --check passed and the local code-only graph was refreshed. The user's application was no longer running at the final window check, so the populated screen was not rechecked in this follow-up.
+
+
 ## Menu, basket and ordering journey — 2026-11-27
 
 Implemented public category/search/sort browsing, virtualized meal cards, staged quantity editing with Toolkit Labs transitions, connected item-image navigation, shared in-memory basket totals/badges, owned checkout, confirmation/receipts, active/past order cards, and explicitly simulated delivery/cancellation. The existing schema and SQL procedure contracts are unchanged. Added fictional local SVG food illustrations and missing-image fallback. Replaced placeholder comments because those views now implement the actual customer workflow; existing scaffold/provenance headers remain intact.
