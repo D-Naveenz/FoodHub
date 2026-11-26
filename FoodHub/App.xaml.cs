@@ -1,3 +1,4 @@
+using Dhara.Extensions.WinUI.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,17 +22,12 @@ namespace FoodHub
     public partial class App : Application
     {
         private readonly IHost? _host;
-        private readonly CancellationTokenSource _lifetime = new();
         private readonly string? _startupFailure;
-        private Task? _launchTask;
-        private Task? _shutdownTask;
-        private CancellationTokenRegistration _stoppingRegistration;
-        private IMainWindowService? _windows;
-        private bool _closing;
+        private IWinUIApplicationLifetime<MainWindow>? _application;
         /// <summary>Resolves dependencies only at WinUI construction boundaries.</summary>
         public static T GetService<T>() where T : notnull => ((App)Current)._host!.Services.GetRequiredService<T>();
         /// <summary>Forwards to the hosted window service for existing pickers and owned-window behavior.</summary>
-        public static MainWindow MainWindow => ((App)Current)._windows!.Window;
+        public static MainWindow MainWindow => ((App)Current)._application!.MainWindow;
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -40,7 +36,7 @@ namespace FoodHub
         public App()
         {
             InitializeComponent();
-            try { _host = ApplicationHost.Build(); }
+            try { _host = ApplicationHost.Build(this); }
             catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException or System.ComponentModel.Win32Exception)
             {
                 // No logger exists if storage-root/host construction fails. Never include exception payloads.
@@ -57,74 +53,65 @@ namespace FoodHub
         {
             if (_host is null)
             {
-                var errorWindow = new Window { Content = new TextBlock { Text = _startupFailure, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(32) } };
-                errorWindow.Closed += (_, _) => { _lifetime.Dispose(); Exit(); };
-                errorWindow.Activate();
+                await ShowStartupFailureAsync();
                 return;
             }
-            _windows = GetService<IMainWindowService>();
-            var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            _stoppingRegistration = GetService<IHostApplicationLifetime>().ApplicationStopping.Register(
-                () => dispatcher.TryEnqueue(RequestShutdown));
-            try { _launchTask = LaunchAsync(); await _launchTask; }
+            _application = GetService<IWinUIApplicationLifetime<MainWindow>>();
+            try { await _application.StartAsync(args); }
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                GetService<ILogger<App>>().LogError("Application startup failed: {Category}", ex.GetType().Name);
-                RequestShutdown();
+                // Dhara has already scheduled host cleanup. The app keeps only this async-void exception boundary.
+                System.Diagnostics.Trace.TraceError("Application startup failed: {0}", ex.GetType().Name);
+                await _application.RequestShutdownAsync();
             }
         }
 
-        /// <summary>Starts hosted services before activation; private state is restored only after storage preparation.</summary>
-        private async Task LaunchAsync()
+        /// <summary>Shows a native error dialog when bootstrap failed before the main window could be constructed.</summary>
+        /// <returns>A task that completes when the dialog is dismissed or its host window is closed.</returns>
+        private async Task ShowStartupFailureAsync()
         {
-            await _host!.StartAsync(_lifetime.Token);
-            var session = GetService<SessionState>();
-            var logger = GetService<ILogger<App>>();
+            // ContentDialog requires a loaded XamlRoot. The normal MainWindow depends on the failed host,
+            // so this minimal window supplies only the XAML surface, without resolving application services.
+            var root = new Grid();
+            var dialogWindow = new Window { Title = "FoodHub", Content = root };
+            var loaded = new TaskCompletionSource<bool>();
+            var closed = false;
+            var dialog = new ContentDialog
+            {
+                Title = "FoodHub could not start",
+                Content = _startupFailure,
+                CloseButtonText = "Close",
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            void RootLoaded(object sender, RoutedEventArgs args) => loaded.TrySetResult(true);
+            root.Loaded += RootLoaded;
+            dialogWindow.Closed += (_, _) =>
+            {
+                closed = true;
+                // Closing the title bar must also release any pending load or dialog wait.
+                loaded.TrySetResult(false);
+                dialog.Hide();
+                Exit();
+            };
+
             try
             {
-                await GetService<DatabaseSettingsStore>().PrepareSessionAsync(() => GetService<SessionStorage>().WriteAsync(null));
-                _windows!.Activate();
-                if (!_closing) await session.RestoreAsync(_lifetime.Token);
+                dialogWindow.Activate();
+                if (!await loaded.Task || closed) return;
+                dialog.XamlRoot = root.XamlRoot;
+                await dialog.ShowAsync();
             }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) when (ex is DatabaseConfigurationException or System.IO.IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
-                logger.LogWarning("Session preparation failed: {Category}", ex.GetType().Name);
-                _windows!.Activate();
-                if (!_closing) session.Message = "Account settings need attention. Open Settings to repair configuration or check access to app data.";
+                // This is the last UI boundary: a dialog failure must not escape async-void OnLaunched.
+                System.Diagnostics.Trace.TraceError("Startup error dialog failed: {0}", ex.GetType().Name);
             }
-        }
-
-        /// <summary>All close sources converge here; repeated requests reuse the same shutdown task.</summary>
-        private void RequestShutdown() => _shutdownTask ??= ShutdownAsync();
-
-        /// <summary>Stops/disposes the host before releasing the dispatcher and its native window.</summary>
-        private async Task ShutdownAsync()
-        {
-            _closing = true;
-            _lifetime.Cancel();
-            try
-            {
-                // Startup must finish cancelling before hosted service shutdown can begin.
-                if (_launchTask is not null)
-                    try { await _launchTask; } catch (Exception) { /* OnLaunched already reports startup failures safely. */ }
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await _host!.StopAsync(timeout.Token);
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { GetService<ILogger<App>>().LogError("Application shutdown failed: {Category}", ex.GetType().Name); }
             finally
             {
-                _stoppingRegistration.Dispose();
-                _host!.Dispose();
-                _lifetime.Dispose();
-                if (_windows is not null)
-                {
-                    try { _ = _windows.Window; _windows.CompleteShutdown(); }
-                    catch (InvalidOperationException) { Exit(); }
-                }
-                else Exit();
+                root.Loaded -= RootLoaded;
+                if (!closed) dialogWindow.Close();
             }
         }
     }

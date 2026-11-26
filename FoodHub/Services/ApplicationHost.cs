@@ -1,56 +1,28 @@
+using Dhara.Extensions.WinUI.Hosting;
+using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using FoodHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace FoodHub.Services;
 
 /// <summary>Builds the application's one service provider; UI services are first resolved on the dispatcher.</summary>
 public static class ApplicationHost
 {
-    /// <summary>Creates the host with the same configuration rules as EF and administration tools.</summary>
-    public static IHost Build()
+    /// <summary>Connects Dhara's reusable WinUI infrastructure to FoodHub's domain services.</summary>
+    /// <param name="application">The existing App instance created by WinUI's generated entry point.</param>
+    /// <returns>The host whose startup and disposal are owned by Dhara's application lifetime controller.</returns>
+    public static IHost Build(App application)
     {
-        var runtime = new AppRuntimeEnvironment();
-        var storage = WindowsLocalStorage.Create(runtime);
-        string? storageError = null;
-        if (runtime.IsPackaged)
-        {
-            try { LegacySettingsMigration.Import(new ApplicationPaths().UserDirectory, storage); }
-            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
-            { storageError = "Legacy settings could not be imported. Check access to local application storage."; }
-        }
-        var paths = new ApplicationPaths(userDirectory: storage.RootDirectory);
-        var (configuration, error) = DatabaseConfiguration.Load(paths, DatabaseConfiguration.EnvironmentName);
-        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
-        {
-            DisableDefaults = true,
-            ApplicationName = typeof(App).Assembly.GetName().Name,
-            EnvironmentName = DatabaseConfiguration.EnvironmentName,
-            ContentRootPath = paths.InstallDirectory
-        });
-        builder.Configuration.AddConfiguration(configuration, shouldDisposeConfiguration: true);
-        builder.Logging.AddDebug();
-        builder.Services.AddSingleton(paths);
-        builder.Services.AddSingleton<ILocalStorageService>(storage);
-        builder.Services.AddSingleton(new DatabaseSettings(configuration, storageError ?? error));
-        builder.Services.AddSingleton<DatabaseSettingsStore>();
-        builder.Services.AddSingleton<DatabaseConnectionTester>();
-        builder.Services.AddSingleton<IAppRuntimeEnvironment>(runtime);
-        builder.Services.AddSingleton<ILocalStorageFolderLauncher, LocalStorageFolderLauncher>();
-        builder.Services.AddSingleton<Func<FoodHub.Core.Models.FoodHub_DevContext>>(sp => sp.GetRequiredService<DatabaseSettings>().Open);
-        builder.Services.AddSingleton<AccountService>();
+        var builder = WinUIApplication.CreateBuilder(application, new WinUIApplicationOptions { PublisherName = "dashe", ApplicationDataName = "FoodHub" });
+        builder.UseWinUIApplication<MainWindow>();
+        builder.Services.AddFoodHubCore();
+        builder.Services.AddSingleton<IWinUIStartupParticipant, FoodHubStartupParticipant>();
         builder.Services.AddSingleton<SessionStorage>();
         builder.Services.AddSingleton<SessionState>();
         builder.Services.AddSingleton<AppearanceSettings>();
         builder.Services.AddSingleton<ViewModelFactory>();
-        builder.Services.AddSingleton<MainWindow>();
-        builder.Services.AddSingleton<Func<MainWindow>>(sp => sp.GetRequiredService<MainWindow>);
-        builder.Services.AddSingleton<MainWindowHostedService>();
-        builder.Services.AddSingleton<IMainWindowService>(sp => sp.GetRequiredService<MainWindowHostedService>());
-        builder.Services.AddHostedService(sp => sp.GetRequiredService<MainWindowHostedService>());
         return builder.Build();
     }
 }

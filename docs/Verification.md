@@ -1,4 +1,103 @@
-# Verification record — 2026-11-24
+# Verification record
+
+## Startup error ContentDialog — 2026-11-26
+
+Replaced the plain TextBlock error window in App.OnLaunched with a native ContentDialog titled “FoodHub could not start” and a Close button. The bootstrap-failure path cannot construct the service-dependent main window, so a minimal window supplies the required loaded XamlRoot. Dialog dismissal closes this host; title-bar closure releases pending waits and exits. The existing safe error text and category-only tracing are preserved. Recoverable startup feedback and hosted shutdown behavior are unchanged.
+
+Checked: x64 Debug application build passed with zero warnings/errors after restoring the missing x64 assets with network access. git diff --check passed, and local code-only Graphify extraction was refreshed. The bootstrap-failure dialog, keyboard dismissal and title-bar closure were not manually exercised; compilation does not verify these runtime paths.
+
+## Settings feedback severity — 2026-11-26
+
+Database connection checks now return a typed success/warning/error outcome with safe feedback. Settings binds its database InfoBar severity to the view model: successful checks/saves/resets use Success, missing migrations/schema use Warning, and configuration/connection/save failures use Error. Cancellation, authentication guidance and the restart reminder use Informational. Native WinUI supplies severity colours and distinct icons. A load error is retained instead of being overwritten by authentication guidance.
+
+Checked: x64 Debug application and unpackaged test builds passed with zero warnings/errors. All 21 DatabaseConfigurationTests passed, including save/failure/recovery severity, initial error versus guidance, and a bounded unavailable-endpoint check. SQL integration assertions now check missing-migration Warning and ready-schema Success outcomes, but those SQL scenarios were not run for this change. No manual WinUI appearance/accessibility check was performed. git diff --check passed; local code-only Graphify extraction was refreshed without cloud calls.
+
+## Local storage path label — 2026-11-26
+
+Replaced the Development settings path text box with a wrapping, selectable TextBlock under the Local storage label. The path is informational and cannot be changed through the GUI; the existing folder-opening command is preserved.
+
+Checked: x64 Debug application build passed with zero warnings/errors, and git diff --check passed. No manual WinUI layout or accessibility check was performed for this change.
+
+## PowerShell database automation — 2026-11-26
+
+Replaced FoodHub.Database with scripts/Invoke-Database.ps1 and a small Core design-time factory. Core generates runtime configuration and copies managed dependencies so EF can host it directly. Removed the console project from the solution and deleted its maintained sources, including native activation-context P/Invokes and the resource-directory workaround. Their comments described behavior that is no longer needed; the new script help and factory XML documentation explain the replacement. Existing context scaffold headers, migrations, SQL and runtime settings policy are unchanged.
+
+Automation uses explicit Windows-authentication server/database parameters (localhost/FoodHub_Dev defaults), independently of appsettings, build-profile environment selection and native runtime preferences. The pinned .config/dotnet-tools.json replaces the undocumented local-tool installation path for new setup. Reset is guarded in both script and factory, supports WhatIf, and stops on a failed drop before migration. No application startup reset/migration was added.
+
+Checked:
+
+- Core builds with zero warnings/errors; EF context discovery works directly against Core without native Windows runtime activation or opening SQL.
+- Real Info and idempotent Script actions passed. SQL export contains the maintained schema/procedure/migration-history definitions and was not executed. Real Reset was tested only with WhatIf; no database was dropped, migrated or seeded.
+- scripts/Test-DatabaseAutomation.ps1 passed in a fresh PowerShell process using a scoped fake dotnet command: WhatIf and invalid targets run no native commands, Reset orders drop before update with matching guarded arguments, failures stop later steps and restore the caller's working directory, and values containing spaces/semicolons remain single arguments.
+- Final unpackaged x64 test build and application build passed with zero warnings/errors. **95 passed, zero failed, four skipped (99 total)**. Skips remain the actual package LocalPath test and three SQL integration cases without FOODHUB_TEST_CONNECTION_STRING. New factory tests cover explicit defaults, argument quoting, reset rejection and invalid/repeated options. The application customer journey was not rerun for this tooling change.
+- EF database drop --dry-run confirmed only localhost/FoodHub_Dev would be targeted. The script's actual build-plus-Info path also worked when invoked from the docs directory. Local code-only Graphify extraction was refreshed (1319 nodes/3013 edges); generated output remains ignored.
+
+
+
+## Reusable Dhara build targets — 2026-11-26
+
+Moved the appsettings build/publish rules from repository Directory.Build.targets into Dhara's buildTransitive/Dhara.Extensions.WinUI.targets. Project-name conditions and FoodHub source paths were removed from the reusable file. Executables explicitly import it while using local project references; the database project alone selects FoodHub as its shared source directory. Pack metadata reserves the standard future NuGet buildTransitive asset. No NuGet publication or runtime settings changes were performed.
+
+Verified with standalone SDK projects whose names are unrelated to FoodHub: Debug/Release/Staging copy the correct files to reused build and publish directories; stale profiles are removed, including a missing current-profile source. Relative shared paths containing spaces work, broad Content globs do not leak other profiles, and libraries/explicit opt-out leave unmanaged files alone. These checks use ordinary build/publish targets, not runtime configuration mocks. The database executable and unpackaged x64 app builds passed with zero warnings/errors. Runtime tests/SQL/manual customer journeys were not rerun for this MSBuild-only change.
+
+
+## Read-only host configuration and native runtime settings — 2026-11-26
+
+This section supersedes the configuration/storage ownership and paths in earlier entries. Dhara now owns the shared ApplicationConfiguration/ApplicationEnvironment, LocalSettingsStore, LocalStorageService and native ApplicationDataContext. FoodHub owns bundled appsettings source files; the database executable links them. Host JSON is read-only and separate from runtime preferences; no legacy files or settings are imported. Core and administration tools now target Windows through Dhara.
+
+Checked:
+
+- Final unpackaged x64 test build: zero warnings/errors. **93 passed, zero failed, four skipped (97 total)**. Skips: actual package LocalPath check and three SQL integration cases without FOODHUB_TEST_CONNECTION_STRING. No database migration/reset or SQL integration run was performed for this change.
+- Tests cover host file precedence and immutability, build metadata/environment-variable isolation, local overrides outside IConfiguration, optional real file watching with immutable database snapshots, settings repair/access failures, token-reset retry sequencing, failed/cancelled writes, concurrent grouped updates and appearance state. Existing hosted-window/dispatcher/lifecycle tests continue to pass.
+- Six native LocalSettings tests use uniquely named child containers, deleting only those test containers afterward. Values survive reopening; typed values/arrays round-trip, unrelated values survive updates/removal, cancellation preserves previous groups, invalid formats require explicit repair and unsupported group objects cannot overwrite committed data. No FoodHub RuntimeSettings values were modified by tests.
+- Windows App SDK containers reject the older Windows.Storage.ApplicationDataCompositeValue. Related values therefore use a typed string envelope committed by a single native assignment; no JSON settings file is involved. Native quotas and per-process-only write coordination are documented in Dhara's guide.
+- Debug database executable build and EF `dbcontext info --project FoodHub.Core --startup-project FoodHub.Database --no-build --configuration Debug` passed. EF resolved SQL Server/localhost/FoodHub_Dev without opening SQL or constructing XAML. A temporary direct-executable settings-only probe also passed and was removed. The factory scopes native manifest activation/resource lookup and restores EF's current directory/runtime environment variables afterward.
+- App Debug (default packaged build path and unpackaged), Release and custom Staging x64 builds passed with zero warnings/errors. Output inspection found base plus Development JSON in Debug app/tool outputs and only base JSON in Release/Staging. This verifies compilation/output selection, not fresh MSIX deployment.
+- Dhara generates XML documentation; builds report no documentation warnings. Existing comments and provenance headers are preserved. The old database-owned configuration/path classes and file-backed settings writer were replaced by the reusable shared implementations; FoodHub retains feature-specific fallback, theme, database and protected-session policy.
+
+The local code-only Graphify graph was refreshed (1324 nodes/3032 edges) without cloud extraction; generated output remains ignored.
+
+Remaining manual verification: fresh MSIX deployment and actual packaged native settings persistence, the complete account/customer journey, and database Save/Reset with remembered sign-in across real application restarts. Unpackaged native storage and generic window lifecycle tests do not claim these full journeys. No NuGet publication was performed.
+
+
+## Dhara WinUI infrastructure extraction — 2026-11-25
+
+This section supersedes earlier Core-owned host-builder/window-helper implementations. General WinUI hosting now lives in Dhara.Extensions.WinUI.Hosting, independently of FoodHub. Core retains portable configuration/storage and service registration; the full Hosting package is referenced by Dhara while Core references Hosting.Abstractions and Configuration.Json. No schema changes, settings migrations or NuGet publication were performed.
+
+Checks performed:
+
+- Independent Dhara Debug/Staging builds passed with XML documentation generation enabled and zero warnings/errors. The complete x64 solution build, including the default packaged app/test build path, passed with zero warnings/errors. FoodHub's unpackaged Debug, Release and Staging builds and the portable database-tool build also passed.
+- Unpackaged x64 test run: **92 passed, zero failed, four skipped (96 total)**. The actual packaged LocalFolder test and three SQL integration tests were skipped because their prerequisites were not present. No SQL integration/reset command was executed for this extraction.
+- Native lifecycle tests now use the real Dhara assembly, the existing test Application, and plain windows without a fake FoodHub.App or copied library implementations. They cover ordered/duplicate startup, real BackgroundService cancellation, worker-originated stop, programmatic Window.Close, native WM_CLOSE, secondary-window cleanup, cancelled/failed startup, close during startup, service-stop exceptions/timeouts, host disposal and final registry removal.
+- Dispatcher tests cover worker-to-UI asynchronous callbacks, affinity after await, callback errors, cancellation before execution, cancellation while queued, and rejected work after a dedicated test queue shuts down. Generic dependency inspection confirms Dhara references no FoodHub assembly.
+- Contract tests compare WinUI and portable tooling profile selection, JSON precedence and malformed/duplicate/root-shape failures. Application environment variables remain ignored. Existing persistence, immutable database snapshot, session reset, account rules and Windows-protected session tests remain in the suite.
+- Native helper tests verify window owner HWND, input disable/re-enable, monitor-bounded sizing and WinRT picker owner initialization without displaying a picker. Appearance tests verify successful persistence updates both registered windows and preserves unrelated database JSON.
+- EF design-time dbcontext info resolved the SQL Server context, localhost and FoodHub_Dev without opening SQL after Core's package references were reduced. App output inspection confirmed Development JSON in Debug and no Development JSON in Release.
+- Manual unpackaged Debug run outside the filesystem sandbox: Guest startup and Settings worked, Development tools showed the normal LocalAppData/FoodHub root, Light applied immediately, and local JSON contained Appearance:Theme=Light. Restored the original System preference and closed the main window; the process exited with code 0.
+
+Remaining manual checks: fresh packaged deployment/actual package LocalFolder behavior, the complete authentication-window/customer journey and shutdown while that account window is open, and unusual multi-monitor/DPI arrangements. Native generic ownership/secondary-window shutdown tests do not claim those complete application journeys. Existing package identity and storage paths are preserved; the library does not grant identity or own runtime deployment.
+
+The old NativeWindows and window-host comments were relocated/replaced with documented generic responsibilities in Dhara. The placeholder Class1 and duplicate application implementations were removed. Existing scaffold/copyright comments remain. Library APIs have XML summaries, lifecycle/threading remarks, parameters, returns, exceptions and examples; the library README explains usage, ownership and deferred publication. Local code-only graph output is refreshed and remains ignored.
+
+## Desktop hosting and unified settings — 2026-11-25
+
+This section supersedes earlier environment-variable, theme.txt and legacy-import behavior below.
+
+Implemented Core's DesktopApplicationBuilder/IHostApplicationBuilder adapter, build-metadata environment selection, a general JSON configuration loader and one shared atomic local-settings writer. Base JSON → environment JSON → local JSON is the application precedence. DOTNET_ENVIRONMENT and application-setting environment overrides are ignored. Appearance now uses Appearance:Theme in general settings, applies immediately after a successful save and ignores theme.txt. Database connections remain immutable until restart, with remembered-token reset sequencing retained. Legacy imports and migration-only tests were removed; their historical verification below is no longer current behavior. Existing scaffold/copyright headers remain; path/provider explanations were moved out of database code and expanded in XML documentation.
+
+Checks performed:
+
+- Core, database tool and Debug/Release/Staging x64 WinUI app builds passed with zero warnings/errors. Both unpackaged and default packaged Debug build configurations compiled; this is not a claim of a fresh MSIX deployment.
+- EF design-time dbcontext info resolved the maintained SQL Server context, localhost and FoodHub_Dev from Debug defaults without opening SQL.
+- Core XML documentation generation passed with no documentation/reference warnings (existing unrelated missing-member documentation warnings were suppressed with NoWarn=1591 for this check).
+- Unpackaged x64 tests: **74 passed, zero failed, four skipped (78 total)**, including duplicate-key and invalid-root repair cases. Skips: actual packaged LocalFolder selection and three SQL integration tests requiring FOODHUB_TEST_CONNECTION_STRING. No SQL schema/data reset was performed for this refactor.
+- Native-window tests verify launch appearance ordering, cancellation, close/host lifetime and immediate appearance application to main/owned windows after persistence. JSON tests cover independent consumer build metadata, missing metadata, three-layer precedence, ignored environment variables, DI validation/disposal, concurrent feature saves, unrelated-key preservation, malformed-file repair, failed writes and session-reset retry.
+- Published the database tool through Debug → Release → Staging into the same artifacts/hosting-publish directory. Debug included base/Development JSON; Release and Staging included only base JSON. A reused Core output directory also removed Development JSON when switching Debug → Release. App output inspection matched these rules. No Staging JSON exists in the repository, so it correctly uses base defaults.
+- Manual unpackaged Debug UI: observed Guest startup, Settings populated from Development JSON, Development tools and the normal LocalAppData/FoodHub path. Selecting Light changed the window immediately; local JSON contained Appearance:Theme=Light. Restored the original System preference and closed normally with exit code 0.
+- The initial sandboxed manual run could not write its redirected app-data root; it showed safe save-failure feedback and closed with exit code 0. Repeating outside the filesystem sandbox verified normal persistence. Isolated native tests also verify failed persistence leaves the active theme unchanged.
+
+Remaining manual checks: fresh packaged deployment/LocalFolder behavior, database Save/Reset with a remembered authenticated session, and complete account/customer journeys. Existing automated snapshot/reset-marker tests cover the refactored logic; SQL integration and these complete journeys were not rerun here. The local code-only graph was refreshed; generated output remains ignored.
+
 
 ## Current host, storage, and development tooling verification
 
@@ -68,7 +167,7 @@ These have implementation and lower-layer coverage where applicable, but were no
 
 ## Local graph and maintenance
 
-Local code-only Graphify extraction was refreshed without cloud calls or semantic document/image extraction. After test migration, the refreshed graph has 787 nodes/1448 edges. The assembly-level test configuration yields no symbols, as expected; top-level database-tool code and the standalone demo seed also require direct inspection where graph coverage is incomplete. Graph output remains ignored. CodeGraph was unavailable and was not installed.
+Local code-only Graphify extraction was refreshed without cloud calls or semantic document/image extraction. After test migration, the refreshed graph has 787 nodes/1448 edges. The assembly-level test configuration yields no symbols, as expected; top-level database-tool code and the standalone demo seed also require direct inspection where graph coverage is incomplete. Graph output remains ignored.
 
 The existing user change in `.vscode/settings.json` was left untouched. Historical scaffold provenance and template teaching comments were preserved. The old embedded-connection `#warning` was removed because context configuration now comes from external options/environment; EF Power Tools configuration was archived as the user-selected migration workflow replaced regeneration.
 
@@ -86,7 +185,7 @@ Release publishing initially exposed EF trimming warnings, so PublishTrimmed is 
 
 Remaining manual acceptance: full GUI credential submission and remembered-account restart, Settings Save/Reset/restart with a disposable account, and accessibility/high-scale checks. Session encryption/restore/sign-out and durable database-change reset behavior have automated coverage; those checks are not a claim of a complete GUI login journey. The packaged-run tooling ignored the temporary-name override and unregistered the existing debug identity on exit. The local development registration was restored from the rebuilt AppX layout, then packaged Settings/SQL connectivity was verified directly without that runner. The restored registration remains available. No customer database data was changed.
 
-Local code-only Graphify extraction was refreshed to 927 nodes/1846 edges without cloud/semantic extraction. CodeGraph remains unavailable and was not installed. Generated graph and build/test/publish artifacts remain ignored by Git.
+Local code-only Graphify extraction was refreshed to 927 nodes/1846 edges without cloud/semantic extraction. Generated graph and build/test/publish artifacts remain ignored by Git.
 
 ## Default Windows App SDK deployment fix — 2026-11-24
 

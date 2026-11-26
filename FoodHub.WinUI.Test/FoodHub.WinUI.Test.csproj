@@ -35,10 +35,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FoodHub.Core\FoodHub.Core.csproj" />
+    <ProjectReference Include="..\Dhara\Dhara.Extensions.WinUI\Dhara.Extensions.WinUI.csproj" />
     <Compile Include="..\FoodHub\ViewModels\DatabaseSettingsViewModel.cs" Link="ViewModels\DatabaseSettingsViewModel.cs" />
-    <Compile Include="..\FoodHub\Services\AppRuntimeEnvironment.cs" Link="Services\AppRuntimeEnvironment.cs" />
-    <Compile Include="..\FoodHub\Services\WindowsLocalStorage.cs" Link="Services\WindowsLocalStorage.cs" />
-    <Compile Include="..\FoodHub\Services\MainWindowHostedService.cs" Link="Services\MainWindowHostedService.cs" />
     <Compile Include="..\FoodHub\Services\AppearanceSettings.cs" Link="Services\AppearanceSettings.cs" />
     <Compile Include="..\FoodHub\ViewModels\DevelopmentSettingsViewModel.cs" Link="ViewModels\DevelopmentSettingsViewModel.cs" />
     <!-- Test the same protected-storage implementation without starting the customer app. -->

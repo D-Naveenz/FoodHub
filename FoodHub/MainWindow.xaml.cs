@@ -1,3 +1,7 @@
+using Dhara.Extensions.WinUI.Storage;
+using Dhara.Extensions.WinUI.Hosting;
+using Dhara.Extensions.WinUI.Windowing;
+using FoodHub.Core.Hosting;
 using FoodHub.Core.Services;
 using System.IO;
 using FoodHub.Pages;
@@ -18,6 +22,7 @@ public sealed partial class MainWindow : Window
 {
     private bool _syncingSelection;
     private bool _closing;
+    private readonly IWindowRegistry _windows;
     private readonly long _paneOpenChangedToken;
     private Type? _pendingDestination;
     private WeakReference<Control>? _returnFocus;
@@ -27,9 +32,14 @@ public sealed partial class MainWindow : Window
     public AuthenticationWindow? AuthenticationWindow { get; private set; }
 
     /// <summary>Initializes the title bar, guest dashboard, and account-state synchronization.</summary>
-    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationPaths paths)
+    /// <param name="session">The customer's observable account state.</param>
+    /// <param name="appearance">FoodHub's persisted appearance adapter.</param>
+    /// <param name="paths">The bundled content paths used for application-specific assets.</param>
+    /// <param name="windows">The reusable registry used to track owned windows and suppress navigation during shutdown.</param>
+    public MainWindow(SessionState session, AppearanceSettings appearance, ApplicationDataPaths paths, IWindowRegistry windows)
     {
         Session = session;
+        _windows = windows;
         InitializeComponent();
         // Observe the actual pane state, which changes before its animation completes.
         // This covers both the title-bar toggle and automatic layout changes on resize.
@@ -38,10 +48,12 @@ public sealed partial class MainWindow : Window
         UpdatePane();
         ExtendsContentIntoTitleBar = true; SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        AppWindow.SetIcon(Path.Combine(paths.InstallDirectory, "Assets", "AppIcon.ico"));
+        AppWindow.SetIcon(Path.Combine(paths.ContentRoot, "Assets", "AppIcon.ico"));
         Session.PropertyChanged += SessionChanged;
         Closed += (_, _) =>
         {
+            // Programmatic Close can be intercepted and delivered again after asynchronous host cleanup.
+            if (_closing) return;
             _closing = true; Session.PropertyChanged -= SessionChanged;
             NavView.UnregisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty, _paneOpenChangedToken);
             AuthenticationWindow?.Close();
@@ -68,16 +80,16 @@ public sealed partial class MainWindow : Window
         if (AuthenticationWindow is { } existing) { existing.Activate(); return; }
         var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(Content.XamlRoot) as Control;
         if (focused is not null) _returnFocus = new(focused);
-        var ownerHwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         try
         {
             var window = new AuthenticationWindow(this, registration);
             AuthenticationWindow = window;
+            _windows.Register(window);
             window.Closed += (_, _) =>
             {
                 AuthenticationWindow = null;
-                NativeWindows.EnableWindow(ownerHwnd, true);
-                if (_closing) return;
+                this.SetInputEnabled(true);
+                if (_closing || _windows.IsShuttingDown) return;
                 Activate();
                 if (window.Succeeded)
                 {
@@ -88,12 +100,12 @@ public sealed partial class MainWindow : Window
                 if (_returnFocus?.TryGetTarget(out var control) == true && control.IsLoaded) control.Focus(FocusState.Programmatic);
                 _returnFocus = null;
             };
-            NativeWindows.EnableWindow(ownerHwnd, false);
+            this.SetInputEnabled(false);
             window.Activate();
         }
         catch
         {
-            NativeWindows.EnableWindow(ownerHwnd, true);
+            this.SetInputEnabled(true);
             AuthenticationWindow = null;
             throw;
         }

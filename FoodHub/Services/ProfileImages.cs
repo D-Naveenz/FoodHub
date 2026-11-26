@@ -1,3 +1,4 @@
+using Dhara.Extensions.WinUI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics.Imaging;
@@ -16,7 +17,7 @@ public static class ProfileImages
     {
         var picker = new FileOpenPicker();
         picker.FileTypeFilter.Add(".png"); picker.FileTypeFilter.Add(".jpg"); picker.FileTypeFilter.Add(".jpeg");
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(owner));
+        owner.InitializeOwnedUI(picker);
         var file = await picker.PickSingleFileAsync();
         if (file is null) return null;
         if ((await file.GetBasicPropertiesAsync()).Size > 5 * 1024 * 1024)

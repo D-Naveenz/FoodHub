@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+## 0.2.0 — 2026-11-26
+
+- Extracted reusable WinUI hosting, lifecycle, storage, dispatcher, theme and native window helpers into Dhara.Extensions.WinUI. Core targets Windows and consumes the shared infrastructure.
+- Added automatic build-profile environments, read-only application JSON defaults and shared native LocalSettings for appearance/database overrides; removed legacy settings imports.
+- Replaced the database console tool with PowerShell automation and direct Core EF tooling for explicit development targets.
+- Displayed the local storage path as a selectable text label, added semantic database feedback severities, and replaced the bootstrap error text view with a native ContentDialog.
+
+Release metadata is 0.2.0; Windows package, assembly and file versions are 0.2.0.0.
+
 ## 0.1.0 — 2026-11-24
 
 Initial development milestone:

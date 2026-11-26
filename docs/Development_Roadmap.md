@@ -22,3 +22,7 @@ Keep basket state in memory provisionally and clear/reconcile it at account chan
 Exercise the complete GUI account journey, remembered-token restart, image picker validation, database-outage retry, high text scaling and screen-reader behavior using a disposable account database. Review [Accounts](Accounts.md) for the implemented rules. Password recovery/change and email changes require a later explicit slice.
 
 The implemented infrastructure now keeps generated startup, constructor-built host composition, a hosted main-window lifecycle, package-aware local storage, Development-only Explorer access, and one initial EF migration with explicit disposable-development reset. These changes do not implement deferred ordering pages.
+
+The desktop host uses Dhara’s WinUI builder, automatic build-profile environments, read-only executable-owned JSON defaults and a shared native LocalSettings writer. Appearance applies immediately; database configuration remains restart-only. Legacy settings imports are removed. See Architecture for the public builder API and configuration ownership.
+
+Reusable Windows hosting and helpers now live in Dhara.Extensions.WinUI. FoodHub remains the application composition/domain layer; Core targets Windows and consumes Dhara without creating XAML UI. Database automation uses PowerShell plus EF CLI and a small Core design-time factory; the separate console project was removed. Dhara publication and background/tray operation are deferred.
