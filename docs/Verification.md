@@ -1,5 +1,14 @@
 # Verification record
 
+## Custom green basket button — 2026-11-27
+
+Added BasketSummaryButton to the Menu header, composing the unchanged green-button.png and shopping-basket.svg assets. Count and total appear on two live lines in the green bar, with the SVG centered in the white circle. The native Button retains activation/focus support, a complete accessible name and tooltip; decorative children use Raw automation visibility. The header can reflow, and caption-driven sizing preserves the artwork proportions for longer labels. High contrast uses native styling and system colors. The SVG is explicitly included in packaged/unpackaged content.
+
+Observed in the unpackaged dark-theme app: correct transparent artwork/icon alignment, “0 items / LKR 0.00”, “1 item / LKR 1,500.00”, and “2 items / LKR 2,450.00” after adding the fictional meals. Clicking the custom control opened Basket with the same contents. An initial desktop-only initialization failure was traced to AccessibilitySettings.HighContrastChanged; replacing that event with UISettings.ColorValuesChanged resolved it. Temporary diagnostic code/output was removed afterward.
+
+Checked: x64 unpackaged application build passed with zero warnings/errors and both assets were present in output. The final default packaged x64 application build also passed with zero warnings/errors. git diff --check passed and the local code-only graph was refreshed. No tests were added for this reversible presentation change; no account/database/order data or supplied artwork was changed. Remaining manual checks: actual high-contrast toggling, light theme, keyboard focus/activation and screen-reader announcement, narrow-window reflow, increased system text scaling/long totals, and fresh MSIX deployment.
+
+
 ## Compact menu and staggered cards — 2026-11-27
 
 Replaced the menu's fixed 480-pixel UniformGridLayout cells and ItemContainer surfaces with ItemsRepeater/ScrollViewer and Toolkit StaggeredLayout (Primitives pinned to 8.2.251219). The title and toolbar stay fixed; sort is a checked MenuFlyout, Available only is a Filter AppBarToggleButton, and category chips float over the viewport. Their measured wrapped height determines a scroll-content inset, rather than reducing the viewport. Individual chips use opaque themed surfaces so food images behind them cannot erase label contrast; spaces between chips remain transparent.

@@ -31,7 +31,6 @@ public sealed partial class MenuPage : Page
     {
         InitializeComponent();
         Meals.ItemsSource = _items;
-        SizeChanged += (_, _) => { if (IsLoaded) BasketChanged(null, new(null)); };
         Loaded += PageLoaded;
         Unloaded += (_, _) =>
         {
@@ -97,9 +96,21 @@ public sealed partial class MenuPage : Page
     }
     private void BasketChanged(object? sender, PropertyChangedEventArgs e)
     {
-        var summary = $"Basket · {_basket.Count} · {MenuImages.Money(_basket.Total, _basket.Prices?.Currency)}";
-        BasketButton.Content = ActualWidth < 580 ? $"Basket · {_basket.Count}" : summary;
-        ToolTipService.SetToolTip(BasketButton, summary);
+        BasketButton.SetSummary(_basket.Count, MenuImages.Money(_basket.Total, _basket.Prices?.Currency));
+        UpdateHeaderLayout();
+    }
+    private void Header_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateHeaderLayout();
+    private void Basket_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateHeaderLayout();
+    /// <summary>Moves the basket action below the title when the title and artwork cannot comfortably share a row.</summary>
+    private void UpdateHeaderLayout()
+    {
+        if (MenuHeader is null || BasketButton is null || MenuTitle is null || MenuHeader.ActualWidth <= 0) return;
+        var basketWidth = Math.Max(212, BasketButton.ActualWidth);
+        var stacked = MenuHeader.ActualWidth < basketWidth + 252;
+        Grid.SetRow(BasketButton, stacked ? 1 : 0);
+        Grid.SetColumn(BasketButton, stacked ? 0 : 1);
+        Grid.SetColumnSpan(BasketButton, stacked ? 2 : 1);
+        Grid.SetColumnSpan(MenuTitle, stacked ? 2 : 1);
     }
     private void Search_Changed(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {

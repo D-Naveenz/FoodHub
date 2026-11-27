@@ -1,0 +1,49 @@
+<UserControl x:Class="FoodHub.Controls.BasketSummaryButton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <!-- A real Button still owns input, automation and the system keyboard-focus outline. -->
+        <Style x:Key="ArtworkButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="FocusVisualMargin" Value="2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Surface" Background="Transparent">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters><Setter Target="Surface.Opacity" Value="0.94"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters><Setter Target="Surface.Opacity" Value="0.82"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters><Setter Target="Surface.Opacity" Value="0.45"/></VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Button x:Name="ActionButton" Style="{StaticResource ArtworkButtonStyle}" Click="Action_Click" AutomationProperties.Name="View basket" VerticalAlignment="Center">
+        <Grid x:Name="Artwork" Width="212" Height="72">
+            <Image x:Name="BaseImage" Source="ms-appx:///Assets/UI/green-button.png" Stretch="Uniform" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+            <Image x:Name="BasketImage" Width="36" Height="36" Margin="18,18,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Stretch="Uniform" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                <Image.Source><SvgImageSource UriSource="ms-appx:///Assets/UI/shopping-basket.svg"/></Image.Source>
+            </Image>
+            <StackPanel x:Name="Caption" Margin="78,0,10,0" VerticalAlignment="Center" Spacing="0">
+                <TextBlock x:Name="ItemCount" Text="0 items" FontSize="13" FontWeight="SemiBold" Foreground="#101010" HorizontalAlignment="Center" SizeChanged="Caption_SizeChanged" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock x:Name="TotalPrice" Text="LKR 0.00" FontSize="13" FontWeight="SemiBold" Foreground="#101010" HorizontalAlignment="Center" SizeChanged="Caption_SizeChanged" AutomationProperties.AccessibilityView="Raw"/>
+            </StackPanel>
+        </Grid>
+    </Button>
+</UserControl>

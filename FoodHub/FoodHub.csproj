@@ -32,6 +32,7 @@
     <Content Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png" />
     <Content Include="Assets\AppIcon.ico" />
     <Content Include="Assets\UI\*.png" />
+    <Content Include="Assets\UI\shopping-basket.svg" />
     <Content Include="Assets\FoodHubLogos\*.png" />
     <Content Include="Assets\Promotions\*.png" />
     <Content Include="Assets\Menu\*.svg" />
