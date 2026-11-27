@@ -1,32 +1,62 @@
 <Page x:Class="FoodHub.Pages.MenuPage"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:toolkit="using:CommunityToolkit.WinUI.Controls" xmlns:controls="using:FoodHub.Controls">
- <Grid Padding="24" RowSpacing="16">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-  <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-   <StackPanel><TextBlock Text="Find your next favourite" Style="{StaticResource TitleTextBlockStyle}"/><TextBlock Text="Fresh choices from our takeaway"/></StackPanel>
-   <Button Grid.Column="1" x:Name="BasketButton" Click="Basket_Click" VerticalAlignment="Center"/>
-  </Grid>
-  <CommandBar Grid.Row="1" DefaultLabelPosition="Right" Background="Transparent">
-   <CommandBar.Content><StackPanel Orientation="Horizontal" Spacing="12">
-    <AutoSuggestBox x:Name="Search" Width="240" PlaceholderText="Search meals by name" QueryIcon="Find" TextChanged="Search_Changed" AutomationProperties.Name="Search menu"/>
-    <ComboBox x:Name="Sort" Width="170" SelectedIndex="0" SelectionChanged="Sort_Changed" AutomationProperties.Name="Sort meals">
-     <x:String>Menu order</x:String><x:String>Name</x:String><x:String>Price: low to high</x:String><x:String>Price: high to low</x:String>
-    </ComboBox>
-   </StackPanel></CommandBar.Content>
-   <AppBarButton Icon="Refresh" Label="Refresh" Click="Refresh_Click"/>
-  </CommandBar>
-  <StackPanel Grid.Row="2" Spacing="8">
-   <toolkit:TokenView x:Name="Categories" SelectionMode="Single" CanRemoveTokens="False" IsWrapped="True" SelectionChanged="Category_Changed" AutomationProperties.Name="Menu categories"/>
-   <ToggleButton x:Name="AvailableOnly" Content="Available only" Click="Availability_Click"/>
-  </StackPanel>
-  <StackPanel Grid.Row="3" Spacing="8"><ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
-   <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
-   <TextBlock x:Name="Empty" Text="No meals match these filters." Visibility="Collapsed"/>
-  </StackPanel>
-  <ItemsView x:Name="Meals" Grid.Row="4" SelectionMode="None" IsItemInvokedEnabled="False">
-   <ItemsView.Layout><UniformGridLayout MinItemWidth="260" MinItemHeight="480" MinRowSpacing="12" MinColumnSpacing="12" ItemsStretch="Fill"/></ItemsView.Layout>
-   <ItemsView.ItemTemplate><DataTemplate><ItemContainer><controls:MealCard/></ItemContainer></DataTemplate></ItemsView.ItemTemplate>
-  </ItemsView>
- </Grid>
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
+      xmlns:controls="using:FoodHub.Controls">
+    <Grid Padding="24,16,24,0" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Find your next favourite" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" x:Name="BasketButton" Click="Basket_Click" VerticalAlignment="Center" AutomationProperties.Name="View basket"/>
+        </Grid>
+        <CommandBar x:Name="Toolbar" Grid.Row="1" DefaultLabelPosition="Right" SizeChanged="Toolbar_SizeChanged">
+            <!-- Left Side: TextBox + Extra Buttons -->
+            <CommandBar.Content>
+                <AutoSuggestBox x:Name="Search" Width="240" Margin="0,4" PlaceholderText="Search meals by name" QueryIcon="Find" TextChanged="Search_Changed" AutomationProperties.Name="Search menu"/>
+            </CommandBar.Content>
+            <!-- Right Side: Primary Commands -->
+            <AppBarButton x:Name="SortButton" Icon="Sort" Label="Sort" ToolTipService.ToolTip="Sort meals" AutomationProperties.Name="Sort meals">
+                <AppBarButton.Flyout>
+                    <MenuFlyout>
+                        <ToggleMenuFlyoutItem x:Name="SortMenuOrder" Text="Menu order" Tag="0" Click="Sort_Click"/>
+                        <ToggleMenuFlyoutItem x:Name="SortName" Text="Name" Tag="1" Click="Sort_Click"/>
+                        <ToggleMenuFlyoutItem x:Name="SortPriceAscending" Text="Price: low to high" Tag="2" Click="Sort_Click"/>
+                        <ToggleMenuFlyoutItem x:Name="SortPriceDescending" Text="Price: high to low" Tag="3" Click="Sort_Click"/>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+            <AppBarToggleButton x:Name="AvailableOnly" Icon="Filter" Label="Available only" Click="Availability_Click" ToolTipService.ToolTip="Show available meals only" AutomationProperties.Name="Show available meals only"/>
+            <AppBarButton Icon="Refresh" Label="Refresh" Click="Refresh_Click" ToolTipService.ToolTip="Refresh menu"/>
+        </CommandBar>
+        <Grid Grid.Row="2">
+            <!-- The inset is inside the scrolling content: it disappears as cards pass behind the floating chips. -->
+            <ScrollViewer x:Name="MenuScroll" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto" IsHorizontalRailEnabled="False">
+                <StackPanel x:Name="ScrollContent" Spacing="12" Padding="0,56,0,20">
+                    <StackPanel x:Name="FeedbackPanel" Spacing="8" Visibility="Collapsed">
+                        <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
+                        <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
+                        <TextBlock x:Name="Empty" TextWrapping="Wrap" Visibility="Collapsed"/>
+                    </StackPanel>
+                    <ItemsRepeater x:Name="Meals" ElementPrepared="Meal_Prepared" ElementClearing="Meal_Clearing">
+                        <ItemsRepeater.Layout>
+                            <toolkit:StaggeredLayout DesiredColumnWidth="260" ColumnSpacing="12" RowSpacing="12" ItemsStretch="Fill"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate><controls:MealCard/></DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
+            </ScrollViewer>
+            <!-- A transparent, content-sized overlay leaves the rest of the viewport hit-testable. -->
+            <toolkit:TokenView x:Name="Categories" Canvas.ZIndex="10" Margin="0,4,16,0" VerticalAlignment="Top" HorizontalAlignment="Left" SelectionMode="Single" CanRemoveTokens="False" IsWrapped="True" SelectionChanged="Category_Changed" SizeChanged="Categories_SizeChanged" AutomationProperties.Name="Menu categories"/>
+        </Grid>
+    </Grid>
 </Page>

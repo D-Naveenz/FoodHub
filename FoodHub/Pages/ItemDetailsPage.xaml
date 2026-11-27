@@ -1,15 +1,19 @@
 <Page x:Class="FoodHub.Pages.ItemDetailsPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:FoodHub.Controls">
- <ScrollViewer><StackPanel Padding="32" Spacing="20" MaxWidth="1000" HorizontalAlignment="Stretch">
-  <Button Content="Back to menu" Click="Back_Click"/>
-  <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
-  <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
-  <Border CornerRadius="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"><Image x:Name="Photo" Height="320" Stretch="Uniform"/></Border>
-  <TextBlock x:Name="NameText" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap"/>
-  <TextBlock x:Name="Description" FontSize="18" TextWrapping="Wrap"/>
-  <TextBlock x:Name="Price" FontSize="32" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-  <TextBlock x:Name="Availability"/>
-  <controls:QuantityEditor x:Name="Editor"/>
-  <TextBlock x:Name="Purchase" FontSize="18" TextWrapping="Wrap"/>
-  <Button Content="View basket" Click="Basket_Click"/>
- </StackPanel></ScrollViewer>
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="20" MaxWidth="1000" HorizontalAlignment="Stretch">
+            <Button Content="Back to menu" Click="Back_Click"/>
+            <InfoBar x:Name="Feedback" IsOpen="False" IsClosable="False" Severity="Warning"/>
+            <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed"/>
+            <Border CornerRadius="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <Image x:Name="Photo" Height="320" Stretch="Uniform"/>
+            </Border>
+            <TextBlock x:Name="NameText" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="Description" FontSize="18" TextWrapping="Wrap"/>
+            <TextBlock x:Name="Price" FontSize="32" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+            <TextBlock x:Name="Availability"/>
+            <controls:QuantityEditor x:Name="Editor"/>
+            <TextBlock x:Name="Purchase" FontSize="18" TextWrapping="Wrap"/>
+            <Button Content="View basket" Click="Basket_Click"/>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

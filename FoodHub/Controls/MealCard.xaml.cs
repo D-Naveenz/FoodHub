@@ -15,6 +15,16 @@ public sealed partial class MealCard : UserControl
 {
     private readonly BasketState _basket = App.GetService<BasketState>();
     private MealDetails? _meal;
+    /// <summary>The purchase editor coordinated by the menu page while this card is realized.</summary>
+    public QuantityEditor QuantityEditor => Editor;
+    /// <summary>Current meal identity, used to preserve navigation without retaining entities.</summary>
+    public int? MealId => _meal?.Id;
+    /// <summary>Assigns the current projection item explicitly when the repeater prepares a recycled card.</summary>
+    public void BindMeal(MealDetails meal)
+    {
+        if (ReferenceEquals(DataContext, meal)) Bind();
+        else DataContext = meal;
+    }
     /// <summary>Creates the reusable card and observes its confirmed basket quantity while visible.</summary>
     public MealCard()
     {

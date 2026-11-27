@@ -10,7 +10,7 @@ An educational Foodhub-inspired WinUI 3 customer application backed by SQL Serve
 - Separate owned modal login/registration window, hashed passwords and opaque expiring local sessions; optional seven-day Windows-protected persistence.
 - Editable account/customer names, phone, saved delivery addresses and profile photos. Email is read-only.
 - Photo-led menu with category/search/sort, staged quantity editing, shared in-memory basket, owned delivery checkout, saved receipts, order history and explicitly simulated tracking/cancellation.
-- Toolkit Labs TokenView and TransitionHelper are pinned experimental UI dependencies; WinUI ItemsView virtualizes the menu. Bundled fictional food illustrations work offline.
+- Toolkit Labs TokenView and TransitionHelper are pinned experimental UI dependencies; ItemsRepeater with Toolkit StaggeredLayout virtualizes naturally sized menu cards. Sort and availability live in the compact toolbar; category chips float above scrolling cards. Bundled fictional food illustrations work offline.
 - Reusable Dhara WinUI hosting/helpers, Core services and EF Core migrations; original SQL order procedures and receipt snapshots are retained.
 
 ## Start here

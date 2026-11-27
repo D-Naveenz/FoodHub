@@ -63,6 +63,7 @@
   -->
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Primitives" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.Labs.WinUI.Controls.TokenView" Version="0.1.251217-build.2433" />
     <PackageReference Include="CommunityToolkit.Labs.WinUI.TransitionHelper" Version="0.1.251217-build.2433" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="*" />
